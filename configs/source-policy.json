@@ -1,0 +1,16 @@
+{
+  "version": "source-policy-v1",
+  "publication_requires": ["exact_legal_subject", "durable_permitted_source", "supporting_span", "content_hash", "original_acquisition_time", "extraction_method", "period_when_relevant"],
+  "sources": [
+    {"id": "frozen_registry", "status": "enabled", "network": false, "basis": "Organizer-provided eligibility and identity snapshot for local testing", "scope": "Identity anchor; no inferred website ownership"},
+    {"id": "brreg_api", "status": "conditional", "network": true, "basis": "Official preferred source class", "activation_requires": ["endpoint_terms_receipt", "rate_policy", "adapter_tests"]},
+    {"id": "accounts_pdf", "status": "conditional", "network": true, "basis": "Official preferred source class", "activation_requires": ["endpoint_terms_receipt", "rate_policy", "units_period_scope_tests"]},
+    {"id": "company_owned", "status": "conditional", "network": true, "basis": "Official preferred source class", "activation_requires": ["exact_domain_scope", "terms_and_robots_receipt", "safe_fetcher"]},
+    {"id": "announcements", "status": "conditional", "network": true, "basis": "Official announcement discovery lead", "activation_requires": ["endpoint_terms_receipt", "dated_exact_subject", "adapter_tests"]},
+    {"id": "search_api", "status": "disabled", "network": true, "basis": "Free-first; provider/access/cost not selected", "scope": "Discovery only; snippets never publication evidence"},
+    {"id": "norid_batch", "status": "disabled", "network": true, "basis": "Bulk access not established; no batch permission inferred"},
+    {"id": "nav_jobs", "status": "disabled", "network": true, "basis": "Access credentials and permitted method not established"},
+    {"id": "patents_procurement", "status": "disabled", "network": true, "basis": "Coverage overlap and access not measured"},
+    {"id": "unofficial_social_reviews", "status": "disabled", "network": true, "basis": "No permitted access proof or independent sentiment support"}
+  ]
+}

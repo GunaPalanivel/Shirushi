@@ -1,0 +1,6 @@
+{
+  "scope": "repository_bootstrap",
+  "python": "3.12.12",
+  "third_party_dependencies": [],
+  "description": "Standard-library foundation and contract checks only; not the eventual agent dependency lock."
+}

@@ -1,0 +1,18 @@
+{
+  "contract_version": "shirushi-local-v1",
+  "mode": "local",
+  "sample_size": 20,
+  "wall_time_seconds": 600,
+  "request_budget": 400,
+  "third_party_cost_usd": 0,
+  "workers": 8,
+  "per_host_concurrency": 2,
+  "request_timeout_seconds": 10,
+  "max_retries": 2,
+  "finalization_reserve_fraction": 0.1,
+  "max_response_bytes": 5242880,
+  "max_pdf_bytes": 26214400,
+  "network_enabled": false,
+  "enabled_sources": ["frozen_registry"],
+  "settings_origin": "declared_local_test_budget"
+}

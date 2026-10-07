@@ -1,0 +1,9 @@
+[project]
+name = "shirushi"
+version = "0.0.1"
+description = "Evidence-led exact-company research for Signalpost"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+# Repository preparation tools use the standard library only. Add and lock dependencies
+# when an implemented adapter requires them, not from a speculative list.

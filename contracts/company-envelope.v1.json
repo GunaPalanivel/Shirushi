@@ -1,0 +1,27 @@
+{
+  "version": "shirushi-local-v1",
+  "authority": "Local implementation interface based on the official prose and starter example; not an organizer-confirmed wire schema.",
+  "input": {"format": "jsonl", "identity_key": "organisation_number", "identity_pattern": "^[0-9]{9}$", "duplicates": "reject", "preserve_order": true},
+  "envelope_required": ["organisation_number", "run", "claims", "evidence", "changes", "errors", "operations"],
+  "availability_states": ["available", "not_available", "blocked", "not_applicable", "ambiguous", "failed"],
+  "run_terminal_states": ["completed", "failed"],
+  "claim_required": ["field", "value", "availability", "evidence_ids"],
+  "evidence_required": ["id", "source_url", "source_class", "retrieved_at", "content_sha256", "claim_span", "extraction_method", "locator"],
+  "invariants": [
+    "Output identities exactly equal valid input identities in input order.",
+    "Available values are non-null and reference at least one evidence record.",
+    "Other availability states have null values and an explicit reason.",
+    "Evidence references resolve uniquely within their envelope.",
+    "Source bytes, span support and exact-company attribution are checked separately in saved-company integration.",
+    "Effective dates, reporting periods, units and scope are retained when relevant.",
+    "Failed acquisition does not erase previously supported claims."
+  ],
+  "future_cli": {
+    "command": "python -m shirushi.run",
+    "required": ["--organisations", "--registry", "--config", "--output", "--report", "--run-id"],
+    "optional": ["--previous", "--resume"],
+    "implemented": false
+  },
+  "sections": ["legal_identity_public_brand", "accounts_history", "leadership_registered_workplaces", "website_owned_profiles", "hiring_public_activity", "evidence_availability", "refresh_changes"],
+  "provisional_field_families": ["business_products", "people", "operating_locations", "financials_history", "website_owned_profiles", "jobs_dated_activity"]
+}
