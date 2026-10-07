@@ -5,5 +5,5 @@ description = "Evidence-led exact-company research for Signalpost"
 requires-python = ">=3.12,<3.13"
 dependencies = []
 
-# Repository preparation tools use the standard library only. Add and lock dependencies
+# The offline runner and preparation tools use the standard library only. Lock dependencies
 # when an implemented adapter requires them, not from a speculative list.

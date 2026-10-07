@@ -35,7 +35,7 @@ Bootstrap acceptance evidence:
 | Declared budgets | [20](../configs/local-pilot.json), [100](../configs/local-smoke.json), [300](../configs/local-evaluation.json) | Finite typed settings; inactive sources refused; defaults are local only |
 | Unresolved official facts | [Official template](../configs/official-run.template.json) | Intentionally rejected, not silently given local defaults |
 | Research decisions and forecasts | [Research decisions](research-decisions.md) | Positive/negative controls recorded before run |
-| Repository practices | [CONTRIBUTING](../CONTRIBUTING.md), [SECURITY](../SECURITY.md), [CI](../.github/workflows/contract-validation.yml) | Portable checks, editing conventions, immutable action pins; hosted run pending |
+| Repository practices | [CONTRIBUTING](../CONTRIBUTING.md), [SECURITY](../SECURITY.md), [CI](../.github/workflows/contract-validation.yml) | Portable checks, editing conventions, immutable action pins; prior hosted Windows setup failed; corrected workflow pending |
 
 Reproduce on this machine:
 
@@ -54,6 +54,6 @@ Manual trace before integration:
 3. Source supports employees `0`: available zero with evidence is allowed. No fetched result: null plus reason, never zero.
 4. Same accepted semantic claim at the second observation: keep evidence/history without a material change. Timeout: preserve prior support and mark observation failure.
 
-Saved-company integration starts with a frozen-row reader and content-addressed snapshot, then a candidate extractor and evidence checker, then an envelope serializer and same-snapshot replay. No live connector or large dataset is needed to prove this path. Add independent reference labels before claiming recall.
+Saved-company integration is implemented with a frozen-row reader, retained archive/row snapshots, separate extraction and acceptance, envelope serialization and semantic refresh. [Implementation and acceptance evidence](saved-company-integration.md) documents the narrow offline scope. The next milestone is batch-runner hardening, beginning with exact membership and terminal output under fault injection on 20 companies. Add independent reference labels before claiming recall.
 
 Official release remains blocked on actual resource settings, confirmed wire adapter, source access declarations, complete agent implementation and smoke/clean-room evidence. Unknown family weights and equivalence rules limit private-score prediction. Deadline timezone remains unknown. These are explicit later gates, not excuses to delay local coding.

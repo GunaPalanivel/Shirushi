@@ -120,12 +120,12 @@ def main():
                 errors.append(f'Broken tracked document link: {path.name}: {target}')
     paths = [ROOT / name for name in ('.gitignore', '.python-version', 'pyproject.toml', 'README.md',
                                       'CONTRIBUTING.md', 'SECURITY.md', '.editorconfig', '.gitattributes')]
-    for directory in ('docs', 'configs', 'contracts', 'tools', 'tests', '.github'):
+    for directory in ('docs', 'configs', 'contracts', 'shirushi', 'tools', 'tests', '.github'):
         paths.extend(p for p in (ROOT / directory).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
     report = {'generated_at': datetime.now(timezone.utc).isoformat(),
               'status': 'PASS' if not errors else 'FAIL', 'scope': 'repository_bootstrap',
               'local_foundation_complete': not errors, 'official_release_ready': False,
-              'agent_implemented': False, 'official_score': None,
+              'saved_company_integration_implemented': True, 'live_agent_implemented': False, 'official_score': None,
               'runtime': runtime, 'git': git, 'reviewed_inputs': reviewed, 'universe': universe_audit,
               'archive': {k: v for k, v in inventory.items() if k != 'members'},
               'official_source_receipts': sources, 'local_configs': configs,

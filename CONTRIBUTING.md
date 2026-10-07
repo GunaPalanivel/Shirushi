@@ -1,6 +1,6 @@
 # Contributing
 
-Read the [engineering plan](docs/engineering-plan.md), [company envelope](docs/company-envelope.md), and [rubric mapping](docs/engineering-standards.md) before changing behavior. Use an issue or pull request to describe the concrete problem, proposed behavior, evidence and validation. Public collaboration starts after the repository is published; local changes are currently uncommitted.
+Read the [engineering plan](docs/engineering-plan.md), [company envelope](docs/company-envelope.md), and [rubric mapping](docs/engineering-standards.md) before changing behavior. Use an issue or pull request to describe the concrete problem, proposed behavior, evidence and validation. Public changes include validation evidence and document unmeasured behavior.
 
 Use Python 3.12.12 and a local virtual environment. The current checks need no application dependencies:
 
@@ -10,7 +10,7 @@ python -m venv --without-pip .venv
 .venv\Scripts\python.exe -X dev -W error -m unittest discover -s tests -v
 ```
 
-On Linux/macOS use `.venv/bin/python`. CI runs the same portable contract checks on Linux and Windows. `tools/audit_repository.py` additionally requires ignored local research inputs and is deliberately excluded from public CI.
+On Linux/macOS use `.venv/bin/python`. CI defines portable checks on Linux 3.12.12 and Windows 3.12.10 compatibility; the corrected hosted run is pending. `tools/audit_repository.py` additionally requires ignored local research inputs and is deliberately excluded from public CI. The [saved-company runbook](docs/saved-company-integration.md) covers real-source replay verification.
 
 Follow [PEP 8](https://peps.python.org/pep-0008/): four-space indentation, `snake_case` functions/modules, explicit imports and readable control flow. Name files for their responsibility, not a development stage. Use `test_contract_validation.py` for envelope/configuration invariants and future adapter-specific test files for retrieval/extraction behavior. Separate source acquisition, identity resolution, extraction, evidence checking and serialization.
 

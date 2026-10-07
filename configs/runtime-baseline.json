@@ -1,6 +1,6 @@
 {
-  "scope": "repository_bootstrap",
+  "scope": "offline_saved_company_integration",
   "python": "3.12.12",
   "third_party_dependencies": [],
-  "description": "Standard-library foundation and contract checks only; not the eventual agent dependency lock."
+  "description": "Standard-library saved-company runner and validation; not the eventual live agent dependency lock."
 }
