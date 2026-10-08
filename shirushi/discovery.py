@@ -114,7 +114,7 @@ class AnySearchDiscovery:
             if self.error:
                 raise SourceUnavailable(self.error, 'blocked')
             leads = self._candidates(subject, entity)
-            return leads or self._fallback(subject, entity, 'No usable search candidate')
+            return self._supplement(subject, entity, leads) if leads else self._fallback(subject, entity, 'No usable search candidate')
         except SourceUnavailable as exc:
             if exc.availability == 'blocked':
                 self.error = 'Anonymous discovery unavailable: ' + str(exc)
@@ -124,6 +124,27 @@ class AnySearchDiscovery:
             raise
         finally:
             self.lock.release()
+
+    def _supplement(self, subject, entity, leads):
+        # Nonempty newsroom/reseller search results are not useful identity
+        # leads. Include bounded hypotheses before spending the HTML budget.
+        name = (entity or {}).get('navn', '')
+        words = [w for w in re.findall(r'\w+', name.casefold()) if len(w) >= 3 and w not in {'as', 'asa'}]
+        combined, hosts, added = list(leads), {urlsplit(u).hostname.removeprefix('www.') for u in leads}, []
+        for url in legal_name_candidates(name):
+            host = urlsplit(url).hostname.removeprefix('www.')
+            if host not in hosts:
+                combined.append(url); added.append(url); hosts.add(host)
+        if added:
+            self.diagnostics[subject].append({'source': 'legal_name_hypothesis',
+                'reason': 'Bounded candidate supplementation', 'candidate_urls': added})
+        def rank(url):
+            parts = urlsplit(url)
+            return (not any(word in parts.hostname.casefold() for word in words),
+                    parts.hostname.startswith(('newsroom.', 'news.', 'blog.')),
+                    not bool(re.search(r'vilk|terms|legal|jurid', parts.path, re.I)))
+        combined.sort(key=rank)
+        return combined[:self.receipt['max_candidates']]
 
     def _fallback(self, subject, entity, reason):
         leads = legal_name_candidates((entity or {}).get('navn'))[:self.receipt['max_candidates']]

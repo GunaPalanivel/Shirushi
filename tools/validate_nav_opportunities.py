@@ -54,6 +54,8 @@ def run(root, directory, inputs, challenger):
         errors.append('Incomplete or failed live batch')
     return outcomes, {'operations': report['operations'], 'facts': counts, 'errors': errors,
         'run_errors': report['errors'], 'failed_companies': report['failed_companies'],
+        'nav_diagnostics': [{'organisation_number': c['envelope']['organisation_number'], **a}
+                            for c in report['companies'] for a in c['attempts'] if a['source'] == 'nav_jobs'],
         'supervision': {k: report.get('supervision', {}).get(k) for k in
                         ('worker_completed', 'worker_exit_code', 'unfinished_reason')},
         'output_count': len(rows), 'input_count': len(inputs),

@@ -38,10 +38,10 @@ def business_statement(description, legal_name):
 
 
 class NavFeed:
-    def __init__(self, fetcher, days=7, max_pages=2):
+    def __init__(self, fetcher, days=7, max_pages=8):
         self.fetcher, self.days, self.max_pages = fetcher, days, max_pages
         self.lock, self.index, self.token, self.error = threading.Lock(), None, None, None
-        self.diagnostics = {'pages': 0, 'active_headers': 0, 'window_complete': False}
+        self.diagnostics = {'pages': 0, 'active_headers': 0, 'window_complete': False, 'days': days, 'max_pages': max_pages}
 
     def headers(self):
         while not self.lock.acquire(timeout=0.05):
@@ -58,10 +58,16 @@ class NavFeed:
             self.token = tokens[0]
             since = email.utils.format_datetime(datetime.now(timezone.utc) - timedelta(days=self.days), usegmt=True)
             url, index = 'https://' + HOST + '/api/v1/feed', {}
+            seen_pages = set()
             for _ in range(self.max_pages):
+                if url in seen_pages:
+                    break
+                seen_pages.add(url)
                 raw, _ = self.fetcher.get(url, {HOST}, request_headers={'Authorization': 'Bearer ' + self.token,
                                                                  'If-Modified-Since': since})
                 page = loads(raw)
+                if not isinstance(page, dict):
+                    raise SourceUnavailable('Invalid NAV feed page')
                 self.diagnostics['pages'] += 1
                 items = page.get('items', [])
                 if not isinstance(items, list) or len(items) > 2000:
@@ -115,6 +121,8 @@ class NavFeed:
                     failures.append({'url': url, 'reason': 'Missing exact employer organisation number'}); continue
                 bridge_raw, bridge_receipt = self.fetcher.get(SUBUNIT + org, {'data.brreg.no'})
                 bridge = loads(bridge_raw)
+                if not isinstance(bridge, dict):
+                    raise SourceUnavailable('Invalid NAV employer bridge')
                 if bridge.get('organisasjonsnummer') != org or bridge.get('overordnetEnhet') != subject:
                     failures.append({'url': url, 'reason': 'NAV employer belongs to another legal entity'}); continue
                 pages.append((raw, receipt, bridge_raw, bridge_receipt))

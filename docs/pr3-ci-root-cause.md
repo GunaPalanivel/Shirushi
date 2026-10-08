@@ -130,6 +130,48 @@ completion; full worker/source-audit tests cover malformed responses, 402 and
 no provider. These tests do not identify the earlier lost incomplete-batch reason
 as this defect. Updated diagnostics preserve the reason if it recurs.
 
+## Captured worker crash and production no-search result
+
+Both full `4444651d` workflows finished before this repair. PR run
+[37824328608](https://github.com/GunaPalanivel/Shirushi/actions/runs/37824328608)
+failed website and validation gains; push run
+[37824322311](https://github.com/GunaPalanivel/Shirushi/actions/runs/37824322311)
+failed development and validation gains. All other jobs completed.
+
+The retained development diagnostics now identify the worker failure precisely:
+`AttributeError: 'NoneType' object has no attribute 'lower'`. Twenty checkpointed
+companies were marked failed after the worker aborted. The HTML parser calls
+`.lower()` on nullable `title`/`hreflang`/language and script-type attributes.
+Boolean HTML attributes have a null value. Normalize those values to empty
+strings before normalization. The hosted contract job compares the same input
+against fixed control commit `4444651d` and repaired code, requiring that the old
+parser reproduce the captured error and the new parser preserve observed links.
+A full worker/source-audit regression also exercises boolean attributes.
+
+This captured failure is distinct from the independently reproduced malformed
+search-JSON defect; the diagnostics made that distinction possible.
+
+The passing push website job also ran the search-disabled production path:
+verified website plus 10 catalogue facts, 14 requests, 104 seconds and $0.
+The anonymous branch passed with the foreign contact lead plus advertised
+sitemaps. In the failed PR website job, search returned only a newsroom and
+reseller. Nonempty results suppressed the name-domain fallback. Supplement
+those leads within the existing three-host cap and prioritize likely core hosts
+ahead of editorial subdomains, retaining observed legal pages first. No candidate
+is proof of ownership. Run the no-search check even when the anonymous check fails.
+
+The PR validation gain run completed but acquired no NAV facts with only three
+NAV requests (token plus two feed pages). Its full feed diagnostics were not
+retained, so pagination is an experiment rather than an established explanation.
+Test eight pages within the unchanged seven-day cutoff and shared global budget.
+Retain feed windows, matched employer counts and failures for the next decision.
+Repeated cursors stop; incomplete windows do not establish absence. Exact
+employer-to-parent attribution and active/expiry checks remain unchanged.
+
+The local execution environment disconnected during this investigation. The
+next parser control/repaired comparison, unit suite and complete live checks
+run in hosted CI. Do not describe these latest edits as locally tested.
+
 ## Organizer email and release decision
 
 Soham confirms 100-company shards, 45 minutes, 8 vCPU, 16 GB RAM, 10 GB temporary

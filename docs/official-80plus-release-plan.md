@@ -125,6 +125,16 @@ live website regression. Keep failed-run receipts. Do not remove the check,
 insert a known URL into production, weaken legal ownership or count registry
 activity as external business coverage to obtain a green result.
 
+At `4444651d`, retained diagnostics captured the actual incomplete-batch
+failure: a nullable HTML attribute reaches `.lower()` and aborts the worker,
+marking all 20 checkpointed companies failed. Normalize boolean/empty attributes
+and require a fixed-old/current parser reproduction in hosted CI. The no-search
+production route separately passed with 10 catalogue facts in 14 requests and
+104 seconds. Supplement nonempty newsroom/reseller results with bounded legal-name
+domain hypotheses before they consume the page budget. An eight-page NAV window
+is a bounded experiment for a completed-but-zero-gain run; retain its source
+diagnostics and promote only on actual company gains under the shard budget.
+
 ## Ordered work after PR3
 
 | Order / intended window | Work | Why | Acceptance |

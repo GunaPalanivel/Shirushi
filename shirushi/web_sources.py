@@ -22,11 +22,11 @@ class Page(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        if tag == 'script' and attrs.get('type', '').lower() == 'application/ld+json':
+        if tag == 'script' and (attrs.get('type') or '').lower() == 'application/ld+json':
             self.current = ''
         if tag == 'a' and attrs.get('href'):
             self.links.append(attrs['href'])
-        language = attrs.get('hreflang', attrs.get('data-language', attrs.get('title', ''))).lower().replace('_', '-')
+        language = (attrs.get('hreflang') or attrs.get('data-language') or attrs.get('title') or '').lower().replace('_', '-')
         if (tag in {'a', 'link'} and attrs.get('href')
                 and re.fullmatch(r'(?:no|nb|nn)(?:-no)?', language)):
             self.locales.append(attrs['href'])

@@ -180,6 +180,9 @@ class CoverageRepairTests(unittest.TestCase):
                     return 402, {'content-type': 'application/json'}, b'{"code":-1,"message":"sensitive-provider-message"}'
                 if mode == 'malformed':
                     return 200, {'content-type': 'application/json'}, b'{"code":0,"data":null}'
+                if mode == 'noisy':
+                    return 200, {'content-type': 'application/json'}, json.dumps({'code': 0, 'data': {'results': [
+                        {'url': 'https://newsroom.example.com/press'}, {'url': 'https://reseller.test/product'}]}}).encode()
                 query = json.loads(request_body)['query']
                 results = [] if '942 037 538' in query else [{'url': 'https://example.com/fr/contact'}]
                 raw, kind = json.dumps({'code': 0, 'data': {'results': results}}).encode(), 'application/json'
@@ -197,6 +200,8 @@ class CoverageRepairTests(unittest.TestCase):
                 raw, kind = b'<a data-language="NB-NO" href="/nb-no/">Norsk</a>', 'text/html'
             else:
                 raw, kind = b'<a href="/nb-no/legal-notice">Legal</a><a href="/nb-no/om-oss/jobs">Careers</a><a href="/nb-no/products/work-jacket">Work jacket</a>', 'text/html'
+            if kind == 'text/html' and getattr(self, '_search_mode', None) == 'boolean_attributes':
+                raw = b'<i title></i><link hreflang href="/wrong"><script type></script>' + raw
             fetcher.budget.consume(len(raw))
             return 200, {'content-type': kind}, raw
         job = {'store': self.store.root, 'subjects': [SUBJECT], 'previous': {}, 'config': config,
@@ -223,10 +228,37 @@ class CoverageRepairTests(unittest.TestCase):
             self.assertFalse([u for u in seen if 'api.anysearch.com' in u])
 
     def test_worker_keeps_verified_outputs_with_quota_malformed_or_no_provider(self):
-        for mode in ('quota', 'malformed', 'no_provider'):
+        for mode in ('quota', 'malformed', 'no_provider', 'noisy', 'boolean_attributes'):
             with self.subTest(mode=mode):
                 self._search_mode = mode
                 self.test_sitemap_recovers_unlinked_seller_terms_after_empty_exact_search()
+
+    def test_boolean_html_attributes_do_not_terminate_locale_parsing(self):
+        from shirushi.web_sources import Page, locale_links
+        raw = b'<a title href="/contact">Contact</a><link hreflang href="/empty"><script type>skip</script><a hreflang data-language="NB-NO" href="/nb-no/">Norsk</a>'
+        self.assertEqual(locale_links(raw, 'https://example.com/'), ['https://example.com/nb-no/'])
+        self.assertEqual(Page(raw).scripts, [])
+
+    def test_nav_shared_window_reaches_a_later_page_and_retains_truncation(self):
+        config = load(ROOT / 'configs/local-live.json'); config.update(max_retries=0, min_host_interval_seconds=0)
+        def transport(url, timeout, limit, headers=None):
+            if url.endswith('/publicToken'):
+                return 200, {}, b'aaa.bbb.ccc'
+            page = 2 if url.endswith('?p=2') else 3 if url.endswith('?p=3') else 1
+            name = ['Other AS', 'Another AS', 'Example AS'][page - 1]
+            body = {'items': [{'url': '/api/v1/feedentry/' + UUID,
+                     '_feed_entry': {'status': 'ACTIVE', 'businessName': name}}],
+                    'next_url': '/api/v1/feed?p=' + str(page + 1) if page < 3 else None}
+            return 200, {}, json.dumps(body).encode()
+        limited = NavFeed(Fetcher(Budget(config, time.monotonic() + 3), transport), max_pages=2)
+        self.assertNotIn('example', limited.headers())
+        self.assertFalse(limited.diagnostics['window_complete'])
+        budget = Budget(config, time.monotonic() + 3)
+        wider = NavFeed(Fetcher(budget, transport))
+        self.assertEqual(wider.headers()['example'], [JOB_URL])
+        self.assertTrue(wider.diagnostics['window_complete'])
+        wider.headers()
+        self.assertEqual(budget.requests, 4)
 
     def test_malformed_search_is_a_source_failure_and_quota_is_single_flight(self):
         config = load(ROOT / 'configs/local-live.json'); config.update(max_retries=0, min_host_interval_seconds=0)
@@ -299,7 +331,7 @@ class CoverageRepairTests(unittest.TestCase):
             candidate = 'https://example.com/' if len(calls) == 1 else 'https://example.com/nb-no/terms'
             return 200, {}, json.dumps({'code': 0, 'data': {'results': [{'url': candidate}, {'url': 'https://proff.no/directory'}]}}).encode()
         search = AnySearchDiscovery(Fetcher(budget, transport), {'request_interval_seconds': .02, 'max_queries_per_company': 2, 'max_candidates': 3})
-        self.assertEqual(search.candidates(SUBJECT, {'navn': 'Example AS'}), ['https://example.com/nb-no/terms'])
+        self.assertEqual(search.candidates(SUBJECT, {'navn': 'Example AS'})[0], 'https://example.com/nb-no/terms')
         self.assertIn('Example AS', calls[0]['query'])
         self.assertIn('942 037 538', calls[0]['query'])
         self.assertEqual(calls[1]['query'], 'site:example.com "942 037 538"')

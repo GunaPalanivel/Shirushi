@@ -29,6 +29,14 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python }}
+      - name: Check out the fixed parser reproduction control
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: 4444651d378424836a1696017bb9ab86a0fa5c13
+          path: parser-control
+          persist-credentials: false
+      - name: Reproduce nullable HTML crash on old code and verify repair
+        run: python -X dev -W error tools/reproduce_html_attribute_failure.py --baseline-root parser-control
       - name: Validate local run configurations
         run: python -X dev -W error tools/validate_contracts.py
       - name: Test contract rejection cases
@@ -122,6 +130,7 @@ jobs:
       - name: Audit live discovery, legal ownership and catalogue coverage
         run: python -X dev -W error tools/validate_website_opportunity.py
       - name: Audit credential-free discovery without any search provider
+        if: always()
         run: python -X dev -W error tools/validate_website_opportunity.py --without-search --output-dir out/website-no-search
       - name: Retain bound website audit
         if: always()
