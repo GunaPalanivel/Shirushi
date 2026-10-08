@@ -212,7 +212,10 @@ class CoverageRepairTests(unittest.TestCase):
         search = AnySearchDiscovery(Fetcher(budget, transport), {'request_interval_seconds': .02, 'max_queries_per_company': 2, 'max_candidates': 3})
         self.assertEqual(search.candidates(SUBJECT, {'navn': 'Example AS'}), ['https://example.com/nb-no/terms'])
         self.assertIn('Example AS', calls[0]['query'])
+        self.assertIn('942 037 538', calls[0]['query'])
         self.assertEqual(calls[1]['query'], 'site:example.com "942 037 538"')
+        self.assertEqual(search.diagnostics[SUBJECT][1]['candidate_urls'],
+                         ['https://example.com/nb-no/terms', 'https://proff.no/directory'])
 
     def test_discovery_foreign_locale_is_a_lead_not_ownership(self):
         config = load(ROOT / 'configs/local-live.json'); config.update(min_host_interval_seconds=0, max_retries=0)

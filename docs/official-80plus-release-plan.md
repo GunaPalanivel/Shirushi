@@ -71,7 +71,13 @@ can vary. The acquired Swiss page explicitly links `/nb-no/` via `data-language`
 but our page selector omitted locale links and spent its identity budget on
 Swiss terms. Follow one observed same-host Norwegian alternate, then check its
 legal/contact links. Never synthesize a locale URL or treat a language marker as
-ownership. Keep the host-scoped exact-number query as a bounded discovery lead. Host-name resemblance is only a retrieval lead. Retain legal ownership,
+ownership. The locale traversal reached more pages at `c51a0486` but still found no exact
+operator proof: the Norwegian legal-notice page does not link the available
+seller terms. Direct fresh API probes for both the legal name plus exact number
+and the host plus exact number returned the Norwegian seller terms. Prefer the
+exact-identifier query first, use broad-name search only as fallback, and retain
+per-query request IDs/result URLs to identify hosted provider differences.
+Search snippets and result content remain excluded from retained evidence. Host-name resemblance is only a retrieval lead. Retain legal ownership,
 seller locale scope, two-query limits and source access checks. Also encode
 international URL paths/queries at the HTTP boundary and skip non-HTML candidates
 without aborting the remaining website route. Tests must reproduce the wrong
@@ -84,14 +90,16 @@ candidate counts improve. No domain or organisation number is hard-coded into
 the submitted discovery implementation; the known company remains a regression
 input, not a held-out recall estimate.
 
-All other current jobs pass: Linux/Windows contracts, financial audits, two
-representative 100-company external audits and two NAV-positive paired runs.
-At `364d6d0c`, the targeted pairs gained 7 business-description companies in
-each group and 20 job-covered companies in each, with no lost coverage or
-unsupported publications. Each challenger used 282/283 requests and about
-183/190 seconds. These inspected source-positive groups prove route behavior,
-not population recall. The representative cohorts and a new untouched reference
-pool answer the population question separately.
+Both full `c51a0486` workflows finished with eight jobs passing and the website
+regression failing. The combined six-source shard produced every output in
+716/718 seconds, with 852/857 requests and no unsupported publications. Both
+representative external cohorts still have zero supported external-family
+coverage. The current NAV-positive pairs gained 7/6 business-covered companies
+and 20/19 job-covered companies, with no lost coverage. These inspected positive
+groups prove route behavior, not population recall. See
+`pr3-ci-root-cause.md` for the complete results and the same-code candidate
+intervention reproduction. A new untouched reference pool must measure broader
+coverage separately.
 
 Merge PR3 only when its exact final head passes every existing check plus the
 live website regression. Keep failed-run receipts. Do not remove the check,

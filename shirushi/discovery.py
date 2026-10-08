@@ -73,6 +73,7 @@ class AnySearchDiscovery:
     def __init__(self, fetcher, receipt):
         self.fetcher, self.receipt = fetcher, receipt
         self.error, self.lock = None, threading.Lock()
+        self.diagnostics = {}
         fetcher.budget.set_host_interval('api.anysearch.com', receipt['request_interval_seconds'])
 
     def candidates(self, subject, entity=None):
@@ -94,9 +95,10 @@ class AnySearchDiscovery:
             raise ValueError('Exact organisation number required')
         name = (entity or {}).get('navn', '')
         spaced = ' '.join(subject[i:i+3] for i in range(0, 9, 3))
-        queries = (['"' + name + '" official website Norway', '"' + name + '" "' + spaced + '"'] if name
+        queries = (['"' + name + '" "' + spaced + '"', '"' + name + '" official website Norway'] if name
                    else ['"' + subject + '" website', '"' + subject + '"'])
         candidates, hosts = [], set()
+        self.diagnostics[subject] = []
         directories = {'proff.no', 'purehelp.no', 'virksomhet.brreg.no', 'firmalisten.no', 'firmadatabasen.no',
                        'regnskapsbasen.no', 'biztrac.no', 'soom.no', 'gulesider.no', '1881.no',
                        'tracxn.com', 'yra.no', 'vexter.no', 'facebook.com', 'linkedin.com'}
@@ -118,11 +120,15 @@ class AnySearchDiscovery:
             results = body.get('data', {}).get('results', [])
             if not isinstance(results, list):
                 raise SourceUnavailable('Invalid discovery response')
+            self.diagnostics[subject].append({'query': query,
+                'request_id': body.get('request_id') if isinstance(body.get('request_id'), str) else None,
+                'result_count': len(results), 'candidate_urls': []})
             for row in results[:10]:
                 try:
                     url = safe_url(row.get('url')); host = urlsplit(url).hostname
                 except (ValueError, AttributeError):
                     continue
+                self.diagnostics[subject][-1]['candidate_urls'].append(url)
                 if (any(host == domain or host.endswith('.' + domain) for domain in directories)
                         or re.search(r'\.(?:pdf|jpg|jpeg|png|zip)$', urlsplit(url).path, re.I)):
                     continue

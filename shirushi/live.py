@@ -320,6 +320,8 @@ def worker(connection, job):
             report = {'source': route, 'status': 'checked'}
             if route == 'company_owned':
                 report['funnel'] = dict(acquired['funnel'])
+                if isinstance(discovery, AnySearchDiscovery):
+                    report['discovery'] = discovery.diagnostics.get(subject, [])
             if acquired['page_failures']:
                 report['page_failures'] = acquired['page_failures']
             try:
