@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 from .api_sources import ACCOUNTS, ENTITY, SUBUNITS, check_api, propose_api
 from .batch import envelope
-from .claims import slot
+from .claims import claim_id, slot
 from .contracts import loads, timestamp
 from .extraction import Candidate
 from .discovery import BraveDiscovery
@@ -252,6 +252,8 @@ def worker(connection, job):
                     if not any(d['accepted'] and d['field'] == 'legal_name'
                                and d['claim']['value'].strip() for d in decisions):
                         raise SourceUnavailable('No verified legal company name', 'ambiguous')
+                    decisions = [d if d['accepted'] else dict(d,
+                        claim_id=claim_id(subject, d['field'], 'official_entity')) for d in decisions]
                     state['entity'] = body
                     state['entity_sid'] = sid
                     state['decisions'].extend(decisions)

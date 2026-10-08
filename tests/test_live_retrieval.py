@@ -243,6 +243,18 @@ class LiveSourceTests(unittest.TestCase):
             self.assertTrue(all([a['source'] for a in f[2]['attempts']] == ['brreg_entity']
                                 for f in frames if f[0] == 'result'))
 
+    def test_optional_rejection_refresh_uses_existing_claim_slot(self):
+        first, _ = self.run_worker()
+        second, _ = self.run_worker(previous={row['organisation_number']: row for row in first},
+                                   entity_overrides={'aktivitet': ['Investering i aksjer.', ' ']})
+        for row in second:
+            activities = [c for c in row['claims'] if c['field'] == 'registered_activity']
+            self.assertEqual(len(activities), 1)
+            self.assertEqual(activities[0]['freshness'], 'stale_after_failed_observation')
+            self.assertEqual(activities[0]['current_attempt_reason'], 'Invalid registered activity')
+            self.assertEqual(row['run']['terminal_status'], 'completed')
+            self.assertNotIn('business_products', covered_families(row['claims']))
+
     def test_registry_website_lead_keeps_owned_page_coverage_unknown(self):
         output, _ = self.run_worker(declared_website='https://example.com/')
         for row in output:

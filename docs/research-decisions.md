@@ -130,3 +130,10 @@ business_products. Added separate script-locator, typed-context, date, family,
 slot and canonical-ID checks so the audit rejects that coverage inflation.
 The corrected local suite has 141 passing tests; fresh corrected-head hosted
 acquisition is still required. No paired content gain or official score exists.
+
+The refresh trace reproduced another consequence: a rejected entity field used
+only its field name, while the supported prior used a canonical claim ID. This
+produced two active registered_activity claims on refresh. Assign the rejected
+official-entity decision its existing canonical slot after identity validation.
+The regression failed with two claims before the fix, then passed with one stale
+supported claim, the new rejection reason, and no verified product coverage.
