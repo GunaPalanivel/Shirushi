@@ -58,14 +58,23 @@ def main():
             if claim['family'] in families:
                 families[claim['family']].add(row['organisation_number'])
     attempts = [a for company in report['companies'] for a in company['attempts'] if a['source'] == 'company_owned']
+    failure_reasons = {}
+    for attempt in attempts:
+        if attempt['status'] == 'failed':
+            key = attempt.get('availability', 'failed') + ': ' + attempt.get('reason', 'Unknown source failure')
+            failure_reasons[key] = failure_reasons.get(key, 0) + 1
     result = {'status': 'PASS' if process.returncode == 0 and not errors and not unsupported else 'FAIL',
         'cohort': args.cohort, 'input_count': len(inputs), 'output_count': len(rows),
+        'failed_companies': report['failed_companies'], 'run_errors': report['errors'],
+        'failed_identity_attempts': [{'organisation_number': c['envelope']['organisation_number'],
+            'reason': a.get('reason'), 'availability': a.get('availability')}
+            for c in report['companies'] for a in c['attempts'] if a['source'] == 'brreg_entity' and a['status'] == 'failed'],
         'company_coverage_by_family': {f: len(values) for f, values in families.items()},
         'supported_external_facts': external_count, 'claims_by_field': fields,
         'source_attempts': len(attempts), 'source_failures': sum(a['status'] == 'failed' for a in attempts),
         'funnel': {key: sum(a.get('funnel', {}).get(key, 0) for a in attempts) for key in
             ['candidate_domains', 'candidate_pages_retrieved', 'candidate_identity_rejections', 'verified_website', 'supported_facts']},
-        'failure_reasons': [{'reason': a.get('reason'), 'availability': a.get('availability')} for a in attempts if a['status'] == 'failed'],
+        'failure_reasons': failure_reasons,
         'unsupported_publications': unsupported, 'operations': report['operations'], 'errors': errors,
         'artifact_binding': {k: report[k] for k in ['input_sha256', 'config_sha256', 'code_sha256', 'output_sha256']},
         'checker_sha256': digest(b''.join(p.name.encode() + p.read_bytes() for p in sorted((ROOT / 'shirushi_eval').glob('*.py')))),

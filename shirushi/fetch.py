@@ -12,6 +12,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
 USER_AGENT = 'Shirushi/0.1'
+BRAVE_REQUEST_COST_USD = 0.005
 
 
 def re_token(value):
@@ -263,7 +264,8 @@ class Fetcher:
                     or urlsplit(url).path != '/res/v1/web/search' or robots
                     or set(request_headers) != {'X-Subscription-Token'}
                     or not isinstance(request_headers['X-Subscription-Token'], str)
-                    or not re_token(request_headers['X-Subscription-Token'])):
+                    or not re_token(request_headers['X-Subscription-Token'])
+                    or cost != BRAVE_REQUEST_COST_USD):
                 raise SourceUnavailable('Authenticated request scope refused', 'blocked')
         if robots:
             self.check_robots(url, allowed_hosts)

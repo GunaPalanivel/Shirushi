@@ -58,6 +58,12 @@ class DiscoveryTests(unittest.TestCase):
                                      request_headers={'X-Subscription-Token': 'test-key'})
         self.assertEqual(self.budget.requests, 0)
 
+    def test_authenticated_search_cannot_omit_its_paid_charge(self):
+        with self.assertRaisesRegex(SourceUnavailable, 'scope refused'):
+            Fetcher(self.budget).get('https://api.search.brave.com/res/v1/web/search?q=test',
+                {'api.search.brave.com'}, request_headers={'X-Subscription-Token': 'test-key'})
+        self.assertEqual(self.budget.requests, 0)
+
     def test_authentication_error_does_not_expose_secret(self):
         def transport(*args):
             raise OSError('Secret test-key was refused')

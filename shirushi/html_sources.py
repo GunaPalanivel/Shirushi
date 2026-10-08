@@ -103,7 +103,7 @@ def html_values(raw, subject, legal_name, url, cutoff):
                     continue
             except ValueError:
                 continue
-            value = {'headline': text, 'published_at': dates[0], 'source_url': url}
+            value = {'statement': text, 'activity_date': dates[0], 'source_url': url}
             key = digest((url + '\n' + text).encode())
             if ('public_activity', key) not in seen:
                 seen.add(('public_activity', key))

@@ -98,7 +98,7 @@ def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
                     re.escape(legal_name) + r'\s+(?:launched|opened|announced|signed|lanserte|\u00e5pnet|kunngjorde|signerte)\b', text, re.I)
                     or date.fromisoformat(dates[0]) > date.fromisoformat(receipt['retrieved_at'][:10])):
                 raise ValueError('Audit unsupported dated activity')
-            expected = {'headline': text, 'published_at': dates[0], 'source_url': receipt['effective_url']}
+            expected = {'statement': text, 'activity_date': dates[0], 'source_url': receipt['effective_url']}
             family = 'jobs_dated_activity'
             key = hashlib.sha256((receipt['effective_url'] + '\n' + text).encode()).hexdigest()
         else:

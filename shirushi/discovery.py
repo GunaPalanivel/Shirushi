@@ -4,11 +4,11 @@ import re
 from urllib.parse import urlencode, urlsplit
 
 from .contracts import load, loads, timestamp
-from .fetch import SourceUnavailable, safe_url
+from .fetch import BRAVE_REQUEST_COST_USD, SourceUnavailable, safe_url
 from .snapshots import digest
 
 ENDPOINT = 'https://api.search.brave.com/res/v1/web/search'
-COST_PER_ATTEMPT_USD = 0.005  # Conservative list price; no credit assumptions.
+COST_PER_ATTEMPT_USD = BRAVE_REQUEST_COST_USD  # No credit assumptions.
 
 
 def access_receipt(path):
