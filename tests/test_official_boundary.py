@@ -95,6 +95,13 @@ class OfficialBoundaryTests(unittest.TestCase):
         self.assertFalse(missing['accepted'])
         self.assertEqual(missing['reason'], 'absent_in_frozen_row')
 
+    def test_csv_header_sniff_cannot_disable_escaped_quotes_in_company_values(self):
+        name = 'Example "Pumps; Valves" AS'
+        _, _, ids = self.frozen(csv_source=True, rows=[{'organisation_number': SUBJECT, 'name': name, 'employees': 0}])
+        decisions = self.check(ids[SUBJECT])
+        self.assertEqual(next(d['claim']['value'] for d in decisions if d['field'] == 'legal_name'), name)
+        self.audit(decisions)
+
     def test_csv_forged_projection_wrong_row_and_parent_are_rejected_independently(self):
         _, _, ids = self.frozen(csv_source=True)
         sid = ids[SUBJECT]

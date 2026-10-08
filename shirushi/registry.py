@@ -66,7 +66,9 @@ def find_rows(data, receipt, subjects, compressed, deadline=None):
             fields = next(csv.reader([header], dialect=dialect))
             if len(fields) != len(set(fields)) or 'organisasjonsnummer' not in fields:
                 raise ValueError('CSV needs unique BRREG column names')
-            reader = csv.DictReader(source, fieldnames=fields, dialect=dialect, strict=True)
+            # Header-only sniffing identifies the separator but cannot observe
+            # escaped quotes in later values. BRREG uses doubled CSV quotes.
+            reader = csv.DictReader(source, fieldnames=fields, dialect=dialect, doublequote=True, strict=True)
             for index, row in enumerate(reader, 1):
                 if None in row or any(v is None for v in row.values()):
                     raise ValueError('CSV row width differs from header')

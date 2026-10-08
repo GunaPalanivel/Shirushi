@@ -53,7 +53,7 @@ def registry_source(audit, receipt, raw, subject):
                 if len(set(names)) != len(names) or 'organisasjonsnummer' not in names:
                     raise ValueError('Audit CSV header mismatch')
                 reader = csv.DictReader((line.decode('utf-8') for line in iterator), fieldnames=names,
-                                        dialect=dialect, strict=True)
+                                        dialect=dialect, doublequote=True, strict=True)
                 for index, row in enumerate(reader, 1):
                     if None in row or any(v is None for v in row.values()):
                         raise ValueError('Audit CSV row shape mismatch')
