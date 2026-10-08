@@ -59,7 +59,9 @@ def verify_previous(store, prior, subject):
                 decision = check_api(store, Candidate(subject, claim['field'], claim['value'],
                                                      item['snapshot_id'], item['locator']), subject)
             if (not decision or not decision['accepted'] or decision['claim']['value'] != claim['value']
-                    or decision['claim']['scope'] != claim.get('scope') or decision['evidence'] != item):
+                    or any(decision['claim'].get(key) != claim.get(key)
+                           for key in ('field', 'claim_id', 'scope', 'family', 'item_key', 'period'))
+                    or decision['evidence'] != item):
                 raise ValueError('Previous live claim failed source verification')
             if timestamp(claim['last_observed_at']) < timestamp(claim['first_observed_at']):
                 raise ValueError('Previous observation times are reversed')

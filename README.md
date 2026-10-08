@@ -4,13 +4,15 @@ Evidence-checked company research for the Signalpost challenge.
 
 Start with the [engineering plan](docs/engineering-plan.md), [rubric-to-standards mapping](docs/engineering-standards.md), [company envelope](docs/company-envelope.md), and [source policy](docs/source-policy.md).
 
-Current implementation: [bounded offline batch execution](docs/batch-runner-hardening.md) plus [supervised live retrieval](docs/live-retrieval.md), exact-source evidence checks, canonical multi-period claims, semantic refresh, grounded static profiles and a separate source-support audit. Fixed routing remains the default; the adaptive scheduler has no demonstrated recall advantage yet. Original research stays under ignored `.idea/buildDocs/`.
+Current implementation: [bounded offline batch execution](docs/batch-runner-hardening.md) plus [supervised live retrieval](docs/live-retrieval.md) and [financial coverage validation](docs/financial-coverage.md), exact-source evidence checks, canonical multi-period claims, semantic refresh, grounded static profiles and a separate source-support audit. Fixed routing remains the default; the adaptive scheduler has no demonstrated recall advantage yet. Original research stays under ignored `.idea/buildDocs/`.
 
 Run a fresh public 100-company smoke test and independent retained-source audit:
 
 ```bash
 python -X dev -W error tools/validate_live_run.py --count 100 --output-dir out/live-smoke
 ```
+
+Validate a separate source cohort with `--page 1 --output-dir out/live-validation`; compare both with `python tools/validate_live_cohorts.py out/live-smoke out/live-validation`. CI retains bound summary/manifests as downloadable artifacts. These measure the retained accounts subset, not full six-family recall.
 
 Run your supplied JSONL batch (one `organisation_number` per line):
 

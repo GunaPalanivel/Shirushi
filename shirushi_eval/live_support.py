@@ -2,9 +2,48 @@
 import hashlib
 import json
 import math
+import re
+from datetime import date
 from urllib.parse import urlsplit
 
 from .reference import strict_json
+
+
+# Independently maintained interpretation, intentionally not imported from maker.
+ACCOUNT_FIELDS = {
+    'annual_revenue': ('resultatregnskapResultat', 'driftsresultat', 'driftsinntekter', 'sumDriftsinntekter'),
+    'annual_operating_profit': ('resultatregnskapResultat', 'driftsresultat', 'driftsresultat'),
+    'annual_profit_before_tax': ('resultatregnskapResultat', 'ordinaertResultatFoerSkattekostnad'),
+    'annual_net_profit': ('resultatregnskapResultat', 'aarsresultat'),
+    'total_assets': ('eiendeler', 'sumEiendeler'),
+    'total_equity': ('egenkapitalGjeld', 'egenkapital', 'sumEgenkapital'),
+    'total_liabilities': ('egenkapitalGjeld', 'gjeldOversikt', 'sumGjeld'),
+    'current_liabilities': ('egenkapitalGjeld', 'gjeldOversikt', 'kortsiktigGjeld', 'sumKortsiktigGjeld'),
+    'long_term_liabilities': ('egenkapitalGjeld', 'gjeldOversikt', 'langsiktigGjeld', 'sumLangsiktigGjeld'),
+}
+
+
+def financial_context(record, subject):
+    if record['virksomhet']['organisasjonsnummer'] != subject:
+        raise ValueError('Audit accounts subject mismatch')
+    scope = {'SELSKAP': 'entity_accounts', 'KONSERN': 'group_accounts'}[record['regnskapstype']]
+    period = record['regnskapsperiode']
+    if (not isinstance(period, dict) or set(period) != {'fraDato', 'tilDato'}
+            or any(not isinstance(v, str) or re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}', v) is None
+                   for v in period.values())
+            or date.fromisoformat(period['fraDato']) > date.fromisoformat(period['tilDato'])):
+        raise ValueError('Audit invalid financial period')
+    if not isinstance(record['valuta'], str) or re.fullmatch('[A-Z]{3}', record['valuta']) is None:
+        raise ValueError('Audit invalid financial currency')
+    return scope, period
+
+
+def financial_value(amount, record, scope, period):
+    if type(amount) not in (int, float) or not math.isfinite(amount):
+        raise ValueError('Audit nonfinite or nonnumeric amount')
+    return {'amount': amount, 'currency': record['valuta'], 'period': period,
+            'account_scope': 'entity' if scope == 'entity_accounts' else 'group',
+            'normalization': 'raw_source_currency_units'}
 
 
 def audit_api(subject, claim, item, receipt, raw):
@@ -40,18 +79,16 @@ def audit_api(subject, claim, item, receipt, raw):
         expected, scope, item_key, period = source, 'official_entity', None, None
     elif kind == 'brreg_accounts':
         path = locator['path']
-        if path[1:] != ['resultatregnskapResultat', 'driftsresultat', 'driftsinntekter', 'sumDriftsinntekter'] or field != 'annual_revenue':
+        if (not isinstance(body, list) or len(body) > 200 or type(path[0]) is not int or path[0] < 0
+                or tuple(path[1:]) != ACCOUNT_FIELDS.get(field)):
             raise ValueError('Audit unsupported financial interpretation')
         record = body[path[0]]
-        if record['virksomhet']['organisasjonsnummer'] != subject:
-            raise ValueError('Audit accounts subject mismatch')
-        scope = {'SELSKAP': 'entity_accounts', 'KONSERN': 'group_accounts'}[record['regnskapstype']]
-        period, item_key = record['regnskapsperiode'], None
-        if type(source) not in (int, float) or not math.isfinite(source):
-            raise ValueError('Audit nonfinite amount')
-        expected = {'amount': source, 'currency': record['valuta'], 'period': period,
-                    'account_scope': 'entity' if scope == 'entity_accounts' else 'group',
-                    'normalization': 'raw_source_currency_units'}
+        scope, period = financial_context(record, subject)
+        item_key = None
+        expected = financial_value(source, record, scope, period)
+        if (claim.get('family') != 'financials_history' or locator != {
+                'path': path, 'scope': scope, 'family': 'financials_history', 'item_key': None, 'period': period}):
+            raise ValueError('Audit financial locator context mismatch')
     else:
         if source.get('overordnetEnhet') != subject or field != 'operating_location':
             raise ValueError('Audit subunit attribution failure')

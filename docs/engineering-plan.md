@@ -59,3 +59,7 @@ Saved-company integration is implemented with a frozen-row reader, retained arch
 A safe live fetcher and global request/retry/redirect/byte/cost accounting must pass adversarial tests before any live baseline or challenger. An offline baseline cannot certify live resource controls. Independent agent adjudication is recorded separately from automated source auditing and independent human review.
 
 Official release remains blocked on actual resource settings, confirmed wire adapter, source access declarations, complete agent implementation and smoke/clean-room evidence. Unknown family weights and equivalence rules limit private-score prediction. Deadline timezone remains unknown. These are explicit later gates, not excuses to delay local coding.
+
+## Current implementation update, 8 October 2026
+
+The historical milestone descriptions above refer to their original bound runs. PR #1 implemented the bounded live foundation, structured revenue route, canonical claims and static profiles; its fresh 100-company run audited 941 supported facts with 400 agent requests. That did not establish representative recall or an official score. The next slice expands explicit structured financial fields at unchanged acquisition cost, with a separately implemented source-subset benchmark and two non-overlapping public 100-company cohorts. See [financial coverage](financial-coverage.md). Six-family independently searched/adjudicated gold, PDF and broad verified-site challengers, planner promotion, browser acceptance and the organizer-confirmed boundary remain later gates.

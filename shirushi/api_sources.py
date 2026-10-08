@@ -13,6 +13,28 @@ ENTITY = 'https://data.brreg.no/enhetsregisteret/api/enheter/'
 ACCOUNTS = 'https://data.brreg.no/regnskapsregisteret/regnskap/'
 SUBUNITS = 'https://data.brreg.no/enhetsregisteret/api/underenheter?overordnetEnhet='
 
+# Explicit source totals only. No arithmetic, currency conversion or missing-to-zero.
+FINANCIAL_PATHS = {
+    'annual_revenue': ('resultatregnskapResultat', 'driftsresultat', 'driftsinntekter', 'sumDriftsinntekter'),
+    'annual_operating_profit': ('resultatregnskapResultat', 'driftsresultat', 'driftsresultat'),
+    'annual_profit_before_tax': ('resultatregnskapResultat', 'ordinaertResultatFoerSkattekostnad'),
+    'annual_net_profit': ('resultatregnskapResultat', 'aarsresultat'),
+    'total_assets': ('eiendeler', 'sumEiendeler'),
+    'total_equity': ('egenkapitalGjeld', 'egenkapital', 'sumEgenkapital'),
+    'total_liabilities': ('egenkapitalGjeld', 'gjeldOversikt', 'sumGjeld'),
+    'current_liabilities': ('egenkapitalGjeld', 'gjeldOversikt', 'kortsiktigGjeld', 'sumKortsiktigGjeld'),
+    'long_term_liabilities': ('egenkapitalGjeld', 'gjeldOversikt', 'langsiktigGjeld', 'sumLangsiktigGjeld'),
+}
+
+
+def account_period(value):
+    if (not isinstance(value, dict) or set(value) != {'fraDato', 'tilDato'}
+            or any(not isinstance(v, str) or re.fullmatch(r'[0-9]{4}-[0-9]{2}-[0-9]{2}', v) is None
+                   for v in value.values())
+            or date.fromisoformat(value['fraDato']) > date.fromisoformat(value['tilDato'])):
+        raise ValueError('Invalid accounting period')
+    return value
+
 
 def at(value, path):
     for component in path:
@@ -39,20 +61,25 @@ def propose_api(store, sid):
                     continue
                 add(field, body[key], [key], 'official_entity', family)
     elif kind == 'brreg_accounts':
+        if not isinstance(body, list) or len(body) > 200:
+            raise ValueError('Invalid or excessive accounts list')
         for index, record in enumerate(body):
-            if record.get('regnskapstype') not in ('SELSKAP', 'KONSERN'):
+            if not isinstance(record, dict) or record.get('regnskapstype') not in ('SELSKAP', 'KONSERN'):
                 continue
             scope = 'entity_accounts' if record['regnskapstype'] == 'SELSKAP' else 'group_accounts'
             period = record.get('regnskapsperiode')
-            path = [index, 'resultatregnskapResultat', 'driftsresultat', 'driftsinntekter', 'sumDriftsinntekter']
-            try:
-                amount = at(body, path)
-            except (KeyError, TypeError):
-                continue
-            value = {'amount': amount, 'currency': record.get('valuta'), 'period': period,
-                     'account_scope': 'entity' if scope == 'entity_accounts' else 'group',
-                     'normalization': 'raw_source_currency_units'}
-            add('annual_revenue', value, path, scope, 'financials_history', period=period)
+            for field, keys in FINANCIAL_PATHS.items():
+                path = [index, *keys]
+                try:
+                    amount = at(body, path)
+                except (KeyError, TypeError):
+                    continue
+                if amount is None:
+                    continue
+                value = {'amount': amount, 'currency': record.get('valuta'), 'period': period,
+                         'account_scope': 'entity' if scope == 'entity_accounts' else 'group',
+                         'normalization': 'raw_source_currency_units'}
+                add(field, value, path, scope, 'financials_history', period=period)
     elif kind == 'brreg_subunits':
         for index, unit in enumerate(body.get('_embedded', {}).get('underenheter', [])):
             if unit.get('beliggenhetsadresse'):
@@ -66,7 +93,7 @@ def propose_api(store, sid):
 def check_api(store, candidate, subject):
     """Check receipt, legal identity, raw path and contextual interpretation."""
     audit = {'field': candidate.field, 'family': (candidate.locator or {}).get('family'),
-             'checker_version': 'official_api_v1'}
+             'checker_version': 'official_api_v2'}
     try:
         raw, receipt = store.open(candidate.snapshot_id)
         kind, locator = receipt['source_class'], candidate.locator
@@ -106,14 +133,12 @@ def check_api(store, candidate, subject):
             record = body[index]
             if record['virksomhet']['organisasjonsnummer'] != subject:
                 raise ValueError('Accounts belong to another company')
-            if path[1:] != ['resultatregnskapResultat', 'driftsresultat', 'driftsinntekter', 'sumDriftsinntekter']:
+            if tuple(path[1:]) != FINANCIAL_PATHS.get(candidate.field):
                 raise ValueError('Unsupported financial field')
-            if candidate.field != 'annual_revenue' or type(value) not in (int, float) or not math.isfinite(value):
-                raise ValueError('Revenue must be a finite supported number')
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ValueError('Financial amount must be a finite supported number')
             scope = {'SELSKAP': 'entity_accounts', 'KONSERN': 'group_accounts'}[record['regnskapstype']]
-            period = record['regnskapsperiode']
-            if set(period) != {'fraDato', 'tilDato'} or date.fromisoformat(period['fraDato']) > date.fromisoformat(period['tilDato']):
-                raise ValueError('Invalid accounting period')
+            period = account_period(record['regnskapsperiode'])
             currency = record['valuta']
             if not isinstance(currency, str) or re.fullmatch('[A-Z]{3}', currency) is None:
                 raise ValueError('Invalid source currency')
@@ -146,7 +171,8 @@ def check_api(store, candidate, subject):
                     'source_class': kind, 'source_origin': receipt['source_origin'],
                     'retrieved_at': receipt['retrieved_at'], 'content_sha256': digest(raw),
                     'claim_span': span(raw, path), 'locator': locator,
-                    'extraction_method': 'official_api_field_v1'}
+                    'extraction_method': ('official_api_financial_v2' if candidate.field in FINANCIAL_PATHS
+                                          and candidate.field != 'annual_revenue' else 'official_api_field_v1')}
         return dict(audit, accepted=True, claim=claim, evidence=evidence)
-    except (ValueError, KeyError, TypeError, OSError, IndexError, AttributeError) as exc:
+    except (ValueError, KeyError, TypeError, OSError, IndexError, AttributeError, OverflowError) as exc:
         return dict(audit, accepted=False, reason=str(exc))

@@ -10,7 +10,7 @@ This implements the production foundation of the combined 80+ plan. It is not an
 |---|---|---|
 | BRREG entity | Legal name/form, explicitly registered employee count/address/activity, declared website lead | Activity is registered activity, not inferred products; a declared website does not prove operating-page ownership |
 | BRREG roles | Existing source-checked registered person roles | No inferred employment; an absent role does not establish removal |
-| BRREG accounts | Annual revenue, separate entity/group scope and reporting periods, original currency units | Missing amounts remain unknown; no PDF parser or implied all-history access |
+| BRREG accounts | Revenue, operating/pre-tax/net profit, assets, equity and total/current/long-term liabilities; separate entity/group scope and reporting periods, original currency units | Missing amounts remain unknown; no PDF parser or implied all-history access |
 | BRREG subunits | Registered operating sites with exact parent attribution | First bounded page only; further pagination remains a recall opportunity |
 | Company-owned pages | Exact-identifier JSON-LD descriptions, website, jobs and dated articles | Registry website anchor plus robots checks; same-host bounded link discovery; no broad free-text extraction or third-party jobs/news feed |
 
@@ -41,7 +41,7 @@ The effective network concurrency is one. Configured ceilings are not inferred q
 
 ## Validation and release gates
 
-The existing 74 tests passed before changes. Added checks cover money/period/scope/identity tampering, independent support auditing, refresh, conflicts, failed request accounting, robots, URL/DNS scope, byte bounds, batch budget failures and escaped profile text. Hosted CI runs the full portable suite plus fresh public 100-company source support on Linux. Run `tools/validate_live_run.py` for an independently audited live cohort; generated bodies and real-company receipts remain ignored.
+The existing 74 tests passed before changes. Added checks cover money/period/scope/identity tampering, independent support auditing, refresh, conflicts, failed request accounting, robots, URL/DNS scope, byte bounds, batch budget failures and escaped profile text. Hosted CI runs the full portable suite plus fresh public 100-company source support on Linux. Run `tools/validate_live_run.py` for a separately implemented automated source audit; generated bodies and real-company receipts remain ignored.
 
 The independent audit imports no maker extractor or acceptance checker. Its result checks source support, not the completeness of the official collection. Labels require independently acquired sources and human adjudication before any competitive recall assertion. Public AS/2025 cohorts are neither representative random samples nor disjoint held-out gold.
 
