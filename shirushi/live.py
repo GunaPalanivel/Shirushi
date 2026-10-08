@@ -17,7 +17,7 @@ from .fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, safe_url,
 from .planner import Planner, ROUTE_FAMILIES
 from .roles import check_role, propose_roles
 from .snapshots import SnapshotStore, digest
-from .web_sources import check_web, page_links
+from .web_sources import check_web, locale_links, page_links
 from .nav_jobs import NavFeed, check_nav
 
 
@@ -73,8 +73,20 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
             links = page_links(root[0], url)
             owner = root if operator_proof(root[0], subject, entity['navn']) else None
             if owner is None:
-                identity_links = [link for link in links if re.search(
-                    r'legal|jurid|terms|vilk|imprint|kontakt|contact|about|om-oss', urlsplit(link).path, re.I)]
+                # Search can land on a foreign locale. Follow one explicitly
+                # linked Norwegian alternate before spending pages on its terms.
+                for link in locale_links(root[0], url)[:1]:
+                    page = retrieve(link, host)
+                    if page:
+                        local.append(page)
+                        links = page_links(page[0], page[1]['effective_url'])
+                        if operator_proof(page[0], subject, entity['navn']):
+                            owner = page
+                if owner is not None:
+                    identity_links = []
+                else:
+                    identity_links = [link for link in links if re.search(
+                        r'legal|jurid|terms|vilk|imprint|kontakt|contact|about|om-oss', urlsplit(link).path, re.I)]
                 for _ in range(2):
                     if not identity_links:
                         break

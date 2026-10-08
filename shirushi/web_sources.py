@@ -14,7 +14,7 @@ from .snapshots import digest
 class Page(HTMLParser):
     def __init__(self, raw):
         super().__init__(convert_charrefs=True)
-        self.scripts, self.links, self.text = [], [], []
+        self.scripts, self.links, self.text, self.locales = [], [], [], []
         self.current = None
         self.feed(raw.decode('utf-8'))
         self.close()
@@ -25,6 +25,10 @@ class Page(HTMLParser):
             self.current = ''
         if tag == 'a' and attrs.get('href'):
             self.links.append(attrs['href'])
+        language = attrs.get('hreflang', attrs.get('data-language', attrs.get('title', ''))).lower().replace('_', '-')
+        if (tag in {'a', 'link'} and attrs.get('href')
+                and re.fullmatch(r'(?:no|nb|nn)(?:-no)?', language)):
+            self.locales.append(attrs['href'])
 
     def handle_data(self, data):
         if self.current is not None:
@@ -200,6 +204,19 @@ def check_web(store, subject, sid):
                             'claim_span': span, 'locator': locator, 'extraction_method': 'scoped_catalogue_html_v2'}
                 decisions.append({'field': field, 'family': family, 'accepted': True, 'claim': claim, 'evidence': evidence})
     return decisions
+
+
+def locale_links(raw, url):
+    """Observed Norwegian alternates are leads, never legal ownership proof."""
+    result = []
+    for link in Page(raw).locales:
+        try:
+            candidate = safe_url(urljoin(url, link), {urlsplit(url).hostname})
+        except ValueError:
+            continue
+        if candidate != url and candidate not in result:
+            result.append(candidate)
+    return result
 
 
 def page_links(raw, url):

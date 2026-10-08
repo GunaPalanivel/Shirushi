@@ -247,6 +247,30 @@ class CoverageRepairTests(unittest.TestCase):
         self.assertIn('not HTML', failures[0]['reason'])
         self.assertEqual(funnel['candidate_identity_rejections'], 0)
 
+    def test_linked_norwegian_locale_reaches_legal_seller_before_foreign_terms(self):
+        from shirushi.web_sources import locale_links
+        seen = []
+        foreign = ('<a data-language="NB-NO" href="/nb-no/">Norway</a>'
+                   '<a href="/fr-ch/terms">Terms</a>'
+                   '<link hreflang="nb-NO" href="https://other.no/">').encode()
+        self.assertEqual(locale_links(foreign, 'https://example.com/fr-ch/contact'), ['https://example.com/nb-no/'])
+        class Discovery:
+            def candidates(self, subject, entity): return ['https://example.com/fr-ch/contact']
+        class Pages:
+            def get(self, url, hosts, robots=False):
+                seen.append(url)
+                if '/fr-ch/' in url: raw = foreign
+                elif url.endswith('/terms'):
+                    raw = b'<p>Terms for purchases between Example AS, org.nr. 942037538 and customers.</p>'
+                else:
+                    raw = b'<a href="/nb-no/terms">Terms</a><a href="/nb-no/products/jacket">Work jacket</a>'
+                return raw, {'content_type': 'text/html', 'effective_url': url}
+        pages, failures, funnel = acquire_website(Pages(), SUBJECT, {'navn': 'Example AS'}, Discovery(), 6)
+        self.assertEqual(pages[0][1]['effective_url'], 'https://example.com/nb-no/terms')
+        self.assertNotIn('https://example.com/fr-ch/terms', seen)
+        self.assertIn('https://example.com/nb-no/products/jacket', seen)
+        self.assertEqual(failures, [])
+
     def test_sampler_does_not_round_away_employers_in_many_industry_cells(self):
         rows = [{'organisation_number': f'{i:09}', 'employees': 0 if i < 850 else 20,
                  'industry_code': str(i), 'municipality_number': str(i), 'legal_form': 'AS'} for i in range(1000)]

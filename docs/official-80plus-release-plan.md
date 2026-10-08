@@ -64,8 +64,14 @@ and a reseller. Five acquired pages did not prove the Norwegian legal operator.
 The exact-entity gate correctly rejected them. Retained Norwegian pages already
 pass extraction, isolating this observed failure to candidate discovery.
 
-Repair the second query to search a likely company host for the exact organisation
-number. Host-name resemblance is only a retrieval lead. Retain legal ownership,
+The host-scoped second query at `1369489a` did not recover a usable legal
+candidate in the fresh hosted run; its predeclared prediction failed. A direct
+provider probe returned Norwegian terms, demonstrating that result availability
+can vary. The acquired Swiss page explicitly links `/nb-no/` via `data-language`,
+but our page selector omitted locale links and spent its identity budget on
+Swiss terms. Follow one observed same-host Norwegian alternate, then check its
+legal/contact links. Never synthesize a locale URL or treat a language marker as
+ownership. Keep the host-scoped exact-number query as a bounded discovery lead. Host-name resemblance is only a retrieval lead. Retain legal ownership,
 seller locale scope, two-query limits and source access checks. Also encode
 international URL paths/queries at the HTTP boundary and skip non-HTML candidates
 without aborting the remaining website route. Tests must reproduce the wrong
