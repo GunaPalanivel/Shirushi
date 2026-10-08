@@ -37,9 +37,9 @@ jobs:
         run: python -W error -m compileall -q shirushi shirushi_eval tools tests
 
   live-smoke:
-    name: Fresh 100-company source audit
+    name: Fresh financial coverage and source audit
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - name: Check out source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -51,3 +51,18 @@ jobs:
           python-version: '3.12.12'
       - name: Run fresh public companies and independent support audit
         run: python -X dev -W error tools/validate_live_run.py --count 100 --output-dir out/live-smoke
+      - name: Validate the next public discovery page
+        run: python -X dev -W error tools/validate_live_run.py --count 100 --page 1 --output-dir out/live-validation
+      - name: Check cohort separation
+        run: python -X dev -W error tools/validate_live_cohorts.py out/live-smoke out/live-validation
+      - name: Retain bound summaries and cohort manifests
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: source-validation-${{ github.run_id }}
+          path: |
+            out/live-*/validation.json
+            out/live-*/input.jsonl
+            out/live-*/config.json
+          if-no-files-found: error
+          retention-days: 14

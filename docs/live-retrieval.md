@@ -8,9 +8,9 @@ This implements the production foundation of the combined 80+ plan. It is not an
 
 | Route | Accepted facts | Bounds and limitations |
 |---|---|---|
-| BRREG entity | Legal name/form, explicitly registered employee count/address/activity, declared website lead | Activity is registered activity, not inferred products; a declared website does not prove operating-page ownership |
+| BRREG entity | Legal name/form, explicitly registered employee count/address/activity, declared website lead | Activity remains a registered fact and does not mark verified business/product coverage; a declared website is a discovery lead and does not mark verified owned-page coverage |
 | BRREG roles | Existing source-checked registered person roles | No inferred employment; an absent role does not establish removal |
-| BRREG accounts | Annual revenue, separate entity/group scope and reporting periods, original currency units | Missing amounts remain unknown; no PDF parser or implied all-history access |
+| BRREG accounts | Revenue, operating/pre-tax/net profit, assets, equity and total/current/long-term liabilities; separate entity/group scope and reporting periods, original currency units | Missing amounts remain unknown; no PDF parser or implied all-history access |
 | BRREG subunits | Registered operating sites with exact parent attribution | First bounded page only; further pagination remains a recall opportunity |
 | Company-owned pages | Exact-identifier JSON-LD descriptions, website, jobs and dated articles | Registry website anchor plus robots checks; same-host bounded link discovery; no broad free-text extraction or third-party jobs/news feed |
 
@@ -41,7 +41,7 @@ The effective network concurrency is one. Configured ceilings are not inferred q
 
 ## Validation and release gates
 
-The existing 74 tests passed before changes. Added checks cover money/period/scope/identity tampering, independent support auditing, refresh, conflicts, failed request accounting, robots, URL/DNS scope, byte bounds, batch budget failures and escaped profile text. Hosted CI runs the full portable suite plus fresh public 100-company source support on Linux. Run `tools/validate_live_run.py` for an independently audited live cohort; generated bodies and real-company receipts remain ignored.
+The existing 74 tests passed before changes. Added checks cover money/period/scope/identity tampering, independent support auditing, refresh, conflicts, failed request accounting, robots, URL/DNS scope, byte bounds, batch budget failures and escaped profile text. Hosted CI runs the full portable suite plus fresh public 100-company source support on Linux. Run `tools/validate_live_run.py` for a separately implemented automated source audit; generated bodies and real-company receipts remain ignored.
 
 The independent audit imports no maker extractor or acceptance checker. Its result checks source support, not the completeness of the official collection. Labels require independently acquired sources and human adjudication before any competitive recall assertion. Public AS/2025 cohorts are neither representative random samples nor disjoint held-out gold.
 
@@ -50,3 +50,5 @@ The local workspace's direct external DNS fails, so local live execution correct
 The profile UI is escaped static HTML with search, comparison, accessible labels/focus, mobile reflow, source receipts, unknowns and history. Summaries are deterministic compositions of accepted claims. No synthesis/UX points, accessibility certification or browser acceptance result is claimed.
 
 Before promoting adaptive routing, compare fixed/adaptive with identical adapters, source cutoff, cache conditions and global budgets on independent cohorts. Record per-family company/fact denominators, false attribution, unsupported finance, costs, failures and abstentions. Retain fixed routing if improvement disappears on validation. PDF extraction, broader web coverage, source-origin fusion gains, complete pagination, representative recall labels, browser acceptance and official calibration remain subsequent gates.
+
+Supplied organisation JSONL retains its 2 MiB local input bound. Evidence-rich output and prior state use a separate 128 MiB local read bound; larger artifacts are refused. These file limits are not official CPU/memory/resource quotas. See [the real-run correction](financial-coverage.md#real-run-correction).
