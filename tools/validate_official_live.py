@@ -87,17 +87,25 @@ def main():
         for claim in row['claims']:
             if claim['availability'] == 'available':
                 fields[claim['field']] = fields.get(claim['field'], 0) + 1
-                if claim.get('family'):
-                    families.setdefault(claim['family'], set()).add(row['organisation_number'])
+                family = claim.get('family') or ('people' if claim['field'].startswith('registered_role:') else None)
+                if family:
+                    families.setdefault(family, set()).add(row['organisation_number'])
     detailed = load(args.output_dir / 'work/shard-0000/report.json')
     attempts = [a for c in detailed['companies'] for a in c['attempts']]
     failures = [a for a in attempts if a['status'] == 'failed']
+    websites = [a for a in attempts if a['source'] == 'company_owned']
+    website_funnel = {key: sum(a.get('funnel', {}).get(key, 0) for a in websites)
+        for key in ('candidate_domains', 'candidate_pages_retrieved', 'candidate_identity_rejections')}
+    website_funnel.update(companies_attempted=len(websites),
+        companies_with_no_candidate=sum(a.get('funnel', {}).get('candidate_domains', 0) == 0 for a in websites),
+        companies_with_no_acquired_page=sum(a.get('funnel', {}).get('candidate_pages_retrieved', 0) == 0 for a in websites))
     result = {'status': 'PASS' if process.returncode == 0 else 'FAIL',
         'input_count': report['input_count'], 'output_count': report['output_count'],
         'failed_companies': report['failed_companies'], 'shards': report['shards'],
         'source_failures': len(failures), 'source_failure_reasons': sorted(set(a.get('reason', '') for a in failures)),
         'entity_requests': sum(a['requests'] for a in attempts if a['source'] == 'brreg_entity'),
         'company_coverage_by_family': {f: len(s) for f, s in sorted(families.items())}, 'claims_by_field': fields,
+        'website_acquisition_funnel': website_funnel,
         'resource_guard': report['resource_guard'], 'source_audit': 'PASS' if report['artifact_complete'] else 'FAIL',
         'observed_memory': report.get('observed_memory'),
         'snapshot_preparation': preparation, 'cutoff': cutoff,

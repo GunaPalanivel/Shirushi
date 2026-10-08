@@ -37,6 +37,13 @@ def label(field):
     return FIELD_LABELS.get(field, field.replace('_', ' ').capitalize())
 
 
+def reason_text(reason):
+    return {'frozen_snapshot': '', 'absent_in_frozen_row': 'The source does not supply this fact.',
+            'unobserved_in_current_sources': 'The latest sources do not confirm the previous value.',
+            'older_source_cannot_replace_newer_verified_value': 'The latest source is older than the retained evidence.'
+            }.get(reason, reason.replace('_', ' '))
+
+
 def anchor(ref):
     return 'evidence-' + digest(ref.encode())[:24]
 
@@ -68,7 +75,7 @@ def context(claim):
     if claim.get('freshness'):
         values.append(claim['freshness'].replace('_', ' '))
     if claim.get('current_attempt_reason'):
-        values.append('Latest check: ' + claim['current_attempt_reason'])
+        values.append('Latest check: ' + reason_text(claim['current_attempt_reason']))
     return '; '.join(values)
 
 
@@ -121,7 +128,7 @@ def profile(envelope):
 
     def fact_row(claim):
         status = claim['availability'].replace('_', ' ')
-        reason = claim.get('reason', '')
+        reason = reason_text(claim.get('reason', ''))
         return ('<tr><th scope="row">' + text(label(claim['field'])) + '</th><td>' + text(display_value(claim)) +
                 '<span class="context">' + text(context(claim)) + '</span></td><td>' + text(status) + ' ' +
                 text(reason) + '</td><td>' + sources_for(claim) + '</td></tr>')
@@ -169,7 +176,7 @@ def render(envelopes, directory):
         rows.append('<tr data-company="' + subject + '"><td><input type="checkbox" aria-label="Compare ' + subject + '"></td><td><a href="' + subject +
                     '.html">' + text(name) + '<br>' + subject + '</a></td><td>' + summary(envelope, subject + '.html') + '</td></tr>')
         comparisons[subject] = {'name': name, 'facts': [{'label': label(c['field']), 'value': display_value(c),
-            'context': context(c), 'status': c['availability'], 'reason': c.get('reason', ''),
+            'context': context(c), 'status': c['availability'].replace('_', ' '), 'reason': reason_text(c.get('reason', '')),
             'href': claim_link(c, subject + '.html') if c['availability'] == 'available' else subject + '.html'}
             for c in envelope['claims']]}
     script = '''<script>
