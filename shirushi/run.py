@@ -12,17 +12,25 @@ from .contracts import ROOT, load, loads, validate_config, validate_envelopes, v
 from .snapshots import digest
 
 MAX_INPUT_BYTES = 2 * 1024 * 1024
+MAX_STATE_BYTES = 128 * 1024 * 1024  # Local retained-output bound; not an official quota.
 
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def read_records(path):
+def read_records(path, max_bytes=MAX_INPUT_BYTES):
     path = Path(path)
-    if path.stat().st_size > MAX_INPUT_BYTES:
-        raise ValueError('Input JSONL exceeds local bound')
-    return [loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+    with path.open('rb') as stream:
+        raw = stream.read(max_bytes + 1)
+    if len(raw) > max_bytes:
+        raise ValueError('JSONL exceeds declared read bound: ' + str(max_bytes))
+    return [loads(line) for line in raw.decode('utf-8').splitlines() if line.strip()]
+
+
+def read_envelopes(path):
+    # Evidence-rich output is larger than the supplied identity-only input.
+    return read_records(path, max_bytes=MAX_STATE_BYTES)
 
 
 def write_new(path, value, jsonl=False):
@@ -108,7 +116,7 @@ def main(argv=None):
                 raise ValueError('Output/report cannot replace source bodies')
         previous = {}
         if args.previous:
-            prior = read_records(args.previous)
+            prior = read_envelopes(args.previous)
             errors = validate_envelopes(records, prior, contract)
             if errors:
                 raise ValueError('Previous envelope invalid: ' + '; '.join(errors))

@@ -8,7 +8,7 @@ This implements the production foundation of the combined 80+ plan. It is not an
 
 | Route | Accepted facts | Bounds and limitations |
 |---|---|---|
-| BRREG entity | Legal name/form, explicitly registered employee count/address/activity, declared website lead | Activity is registered activity, not inferred products; a declared website does not prove operating-page ownership |
+| BRREG entity | Legal name/form, explicitly registered employee count/address/activity, declared website lead | Activity is registered activity, not inferred products; a declared website is a discovery lead and does not mark verified owned-page coverage |
 | BRREG roles | Existing source-checked registered person roles | No inferred employment; an absent role does not establish removal |
 | BRREG accounts | Revenue, operating/pre-tax/net profit, assets, equity and total/current/long-term liabilities; separate entity/group scope and reporting periods, original currency units | Missing amounts remain unknown; no PDF parser or implied all-history access |
 | BRREG subunits | Registered operating sites with exact parent attribution | First bounded page only; further pagination remains a recall opportunity |
@@ -50,3 +50,5 @@ The local workspace's direct external DNS fails, so local live execution correct
 The profile UI is escaped static HTML with search, comparison, accessible labels/focus, mobile reflow, source receipts, unknowns and history. Summaries are deterministic compositions of accepted claims. No synthesis/UX points, accessibility certification or browser acceptance result is claimed.
 
 Before promoting adaptive routing, compare fixed/adaptive with identical adapters, source cutoff, cache conditions and global budgets on independent cohorts. Record per-family company/fact denominators, false attribution, unsupported finance, costs, failures and abstentions. Retain fixed routing if improvement disappears on validation. PDF extraction, broader web coverage, source-origin fusion gains, complete pagination, representative recall labels, browser acceptance and official calibration remain subsequent gates.
+
+Supplied organisation JSONL retains its 2 MiB local input bound. Evidence-rich output and prior state use a separate 128 MiB local read bound; larger artifacts are refused. These file limits are not official CPU/memory/resource quotas. See [the real-run correction](financial-coverage.md#real-run-correction).

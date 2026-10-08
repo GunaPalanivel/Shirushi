@@ -40,6 +40,16 @@ def unique_decisions(decisions):
     return result
 
 
+
+def covered_families(claims):
+    # A registry URL is a discovery lead, not proof of owned-page coverage.
+    # Keep historical claim metadata compatible, but do not schedule from it.
+    return {family for claim in claims
+            if claim['availability'] == 'available' and claim['field'] != 'declared_website'
+            for family in [claim.get('family') or ('people' if claim['field'].startswith('registered_role:') else None)]
+            if family is not None}
+
+
 def verify_previous(store, prior, subject):
     evidence = {e['id']: e for e in prior['evidence']}
     referenced = set()
@@ -109,8 +119,7 @@ def worker(connection, job):
             if prior:
                 prior = dict(prior, claims=[c for c in prior['claims'] if not c['field'].startswith('coverage:')])
             result = envelope(subject, job['run_id'], job['started_at'], decisions, prior, state['failure'])
-            covered = {c.get('family') or ('people' if c['field'].startswith('registered_role:') else None)
-                       for c in result['claims'] if c['availability'] == 'available'}
+            covered = covered_families(result['claims'])
             result['opportunities'] = [{'family': family, 'status': 'covered' if family in covered else 'unknown',
                                        'reason': 'supported_source_fact' if family in covered else 'no_verified_fact',
                                        'scope': 'local_provisional_taxonomy'}
@@ -130,7 +139,7 @@ def worker(connection, job):
 
         def attempt(subject, route):
             state, clock, before = states[subject], time.monotonic(), budget.requests
-            old_families = {d.get('family') for d in state['decisions'] if d['accepted']}
+            old_families = covered_families([d['claim'] for d in state['decisions'] if d['accepted']])
             initial = len(state['decisions'])
             report = {'source': route, 'status': 'checked'}
             try:
@@ -183,7 +192,7 @@ def worker(connection, job):
                 state['attempts'].append(report)
                 new = state['decisions'][initial:]
                 if route in ROUTE_FAMILIES:
-                    planner.observe(route, {d.get('family') for d in new if d['accepted']} - old_families,
+                    planner.observe(route, covered_families([d['claim'] for d in new if d['accepted']]) - old_families,
                                     len([d for d in unique_decisions(new) if d['accepted']]), budget.requests - before)
                 publish(subject)
 
@@ -196,7 +205,7 @@ def worker(connection, job):
             while any(pending.values()):
                 for subject in subjects:
                     if pending[subject]:
-                        covered = {d.get('family') for d in states[subject]['decisions'] if d['accepted']}
+                        covered = covered_families([d['claim'] for d in states[subject]['decisions'] if d['accepted']])
                         route = planner.choose(pending[subject], covered)
                         pending[subject].remove(route)
                         attempt(subject, route)

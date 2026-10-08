@@ -2,7 +2,15 @@
 
 The live foundation at `7bf4d4443eb20e01a46c0e12ca352661cdcced5a` collected 215 supported revenue facts on 85 of 100 public AS companies, using 100 accounts requests within 400 total agent requests. The same responses contain additional explicit results and balance-sheet totals. Extracting only revenue loses recoverable facts and can miss companies with no revenue field.
 
+## Winning metric and scope of this phase
+
+[Builderr's official scoring rules](https://builderr.ai/challenges/signalpost) assign 70% to company coverage and 30% to fact coverage within each information type. Expanding eight fields on an already-covered company improves financial depth. It does not improve that company's coverage contribution. Therefore `additional_covered_companies` is the primary strategic metric and `additional_facts` is secondary. A positive fact-only result can ship as financial completeness, but cannot establish the major external-recall gain required for 80+.
+
+This evaluator tests only the nine explicitly mapped fields in successfully acquired BRREG responses. It neither establishes official fact equivalence/recognition nor measures facts outside those responses. Its source-subset denominator is not Builderr's cumulative checked collection. Company/fact gains must be inspected on both cohorts before merging and reported without an official-score conversion.
+
 ## Input, output and interpretation
+
+The registry website claim remains a retained discovery lead; it no longer marks verified owned-page coverage as covered. Historical claim metadata remains compatible.
 
 The existing exact-organisation accounts endpoint and retained receipts feed proposals in `shirushi/api_sources.py`, its source checker, canonical claims, refresh and the existing profile renderer. No new network route, dependency, model, licence or setting is introduced. Missing and null amounts remain unknown. Explicit zero and negative results survive. No sums, ratios, foreign-exchange conversions or inferred balances are published.
 
@@ -53,3 +61,19 @@ python -X dev -W error tools/validate_live_cohorts.py out/live-smoke out/live-va
 CI preserves summary/config/input-manifest artifacts for 14 days using a pinned upload action. Real source bytes and personal claims are not included in that summary artifact. Full run outputs and evidence remain in the execution directory; summaries cannot independently reproduce source spans after that directory disappears. Downloads therefore establish what the hosted audit reported, not fresh independent adjudication.
 
 The two live cohorts are consecutive public discovery pages of AS companies with 2025 filing metadata. They are not representative population samples or sealed six-family gold. Live revenue-only metrics are a projection of the audited challenger output, not a second acquisition run. No local proxy is converted to official points. Broader verified websites, jobs/activity, PDF opportunities, representative labels, official settings/adapter and official score calibration remain necessary for the 80+ objective.
+
+## Real-run correction
+
+The first hosted challenger completed 100 outputs, but auditing failed before source checking because `read_records` applied the 2 MiB organisation-input limit to the larger output artifact. The fix preserves the 2 MiB supplied-input bound and adds a distinct 128 MiB local envelope/state bound used by audit and prior-state refresh. This is a local read limit, not an organizer resource setting. A counterexample larger than 2 MiB verifies both successful state reading and continued input/state bound rejection. The failed run is not promoted as an audited gain; the corrected head must pass fresh hosted validation.
+
+## Next phase after financial completeness
+
+| Priority | Missing company/attribute opportunity | Required experiment and why |
+|---|---|---|
+| 1 | Verified website ownership | Prioritize companies with only discovery leads or no verified site; prove exact legal ownership before using site content |
+| 2 | Actual products/services | Retrieve permitted product/service pages for companies missing those facts; registered activity is not a product catalogue |
+| 3 | Jobs and dated public activity | Add permitted employer/news sources for companies without supported postings/events; retain exact attribution, IDs and dates |
+| 4 | Financial opportunities beyond the nine paths | Test official PDF/source slices against independently acquired labels for missing companies/attributes; avoid duplicating already-supported totals |
+| Shared gate | External recall across the six families | Independently search/adjudicate missing opportunities on development and disjoint validation cohorts; report company coverage first, facts second, then marginal cost and failure stage |
+
+Promote the next retrieval mechanism for repeatable new-company coverage under equal budgets, with no material identity/support regression. Do not keep optimizing BRREG fact depth while missing website/product/jobs/activity opportunities remain unmeasured. Adaptive scheduling remains a later controlled comparison with identical adapters, budgets and source conditions. Official equivalence, settings/adapter, product acceptance and an official run remain release gates.

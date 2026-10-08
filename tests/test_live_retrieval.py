@@ -175,7 +175,7 @@ class LiveSourceTests(unittest.TestCase):
         stage, _ = failure_stage({}, {'attempts': [{'source': 'company_owned', 'status': 'checked'}]}, gold)
         self.assertEqual(stage, 'extraction')
 
-    def run_worker(self, request_budget=100, previous=None):
+    def run_worker(self, request_budget=100, previous=None, declared_website=None):
         config = load(ROOT / 'configs/local-live.json')
         config.update(min_host_interval_seconds=0, request_budget=request_budget,
                       enabled_sources=['brreg_entity', 'brreg_roles', 'brreg_accounts', 'brreg_subunits'])
@@ -198,6 +198,8 @@ class LiveSourceTests(unittest.TestCase):
             else:
                 body = {'organisasjonsnummer': subject, '_links': {'self': {'href': url}},
                         'navn': 'Synthetic company', 'aktivitet': ['Synthetic registered activity']}
+                if declared_website:
+                    body['hjemmeside'] = declared_website
             raw = json.dumps(body).encode()
             fetcher.budget.consume(len(raw))
             return raw, {'source_url': url, 'effective_url': url, 'http_status': 200,
@@ -213,6 +215,15 @@ class LiveSourceTests(unittest.TestCase):
                                     load(ROOT / 'contracts/company-envelope.v1.json'))
         self.assertEqual(errors, [])
         return output, frames
+
+    def test_registry_website_lead_keeps_owned_page_coverage_unknown(self):
+        output, _ = self.run_worker(declared_website='https://example.com/')
+        for row in output:
+            self.assertTrue(any(c['field'] == 'declared_website' and c['availability'] == 'available'
+                                for c in row['claims']))
+            opportunity = next(o for o in row['opportunities'] if o['family'] == 'website_owned_profiles')
+            self.assertEqual(opportunity['status'], 'unknown')
+            self.assertTrue(any(c['field'] == 'coverage:website_owned_profiles' for c in row['claims']))
 
     def test_live_budget_failure_preserves_checked_facts_and_all_outputs(self):
         output, frames = self.run_worker(request_budget=3)

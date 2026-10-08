@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from shirushi.contracts import load, validate_envelopes
-from shirushi.run import read_records
+from shirushi.run import read_envelopes
 from shirushi.snapshots import digest
 from shirushi_eval.support import SourceAudit
 from shirushi_eval.financial_coverage import compare_accounts
@@ -49,7 +49,7 @@ def main():
                '--output', str(directory / 'envelopes.jsonl'), '--report', str(directory / 'report.json'),
                '--run-id', 'fresh-public-smoke', '--showcase-dir', str(directory / 'site')]
     run = subprocess.run(command, cwd=ROOT, timeout=config['wall_time_seconds'] + 30, check=False)
-    envelopes, report = read_records(directory / 'envelopes.jsonl'), load(directory / 'report.json')
+    envelopes, report = read_envelopes(directory / 'envelopes.jsonl'), load(directory / 'report.json')
     errors = validate_envelopes(inputs, envelopes, load(ROOT / 'contracts/company-envelope.v1.json'))
     audit = SourceAudit(directory / 'snapshots', [r['organisation_number'] for r in inputs])
     counts, audited = {}, 0

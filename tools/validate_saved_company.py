@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from shirushi.contracts import ROOT, load, validate_envelopes  # noqa: E402
 from shirushi.evidence import EvidenceChecker  # noqa: E402
-from shirushi.run import read_records  # noqa: E402
+from shirushi.run import read_envelopes, read_records  # noqa: E402
 from shirushi.snapshots import SnapshotStore, digest  # noqa: E402
 
 
@@ -28,7 +28,7 @@ def main(argv=None):
     errors = []
     try:
         records = read_records(args.organisations)
-        first, second = read_records(args.first), read_records(args.replay)
+        first, second = read_envelopes(args.first), read_envelopes(args.replay)
         contract = load(ROOT / 'contracts/company-envelope.v1.json')
         checker = EvidenceChecker(SnapshotStore(args.store), subjects=[r['organisation_number'] for r in records])
         for label, envelopes in [('first', first), ('second', second)]:

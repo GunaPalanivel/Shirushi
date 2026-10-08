@@ -93,7 +93,9 @@ def compare_accounts(envelopes, report, audit):
         fields[field] = {'reference_facts': len(gold), 'matched_facts': len(found),
                          'reference_companies': len({json.loads(k)[0] for k in gold}),
                          'covered_companies': len({json.loads(k)[0] for k in found})}
-    return {'scope': 'same retained accounts; independent machine enumeration; no human adjudication or official score',
+    return {'metric_priority': ['additional_covered_companies', 'additional_facts'],
+            'promotion_scope': 'targeted financial completeness; broader external recall and official equivalence unmeasured',
+            'scope': 'same retained accounts; independent machine enumeration; no human adjudication or official score',
             'control': 'revenue-only projection of the same audited output; not a second live execution',
             'acquired_source_companies': len(acquired), 'unacquired_source_companies': len(envelopes) - len(acquired),
             'reference_facts': len(expected), 'reference_positive_companies': len(positives),
