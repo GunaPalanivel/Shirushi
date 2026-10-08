@@ -40,6 +40,12 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
         try:
             page = fetcher.get(url, hosts, robots=True)
             funnel['candidate_pages_retrieved'] += 1
+            if 'html' not in page[1]['content_type'].lower():
+                raise SourceUnavailable('Website candidate is not HTML', 'not_available')
+            try:
+                page[0].decode('utf-8')
+            except UnicodeDecodeError:
+                raise SourceUnavailable('Website candidate requires unsupported non-UTF-8 decoding', 'not_available') from None
             return page
         except SourceUnavailable as exc:
             failures.append({'url': url, 'reason': str(exc), 'availability': exc.availability})

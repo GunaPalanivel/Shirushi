@@ -100,7 +100,16 @@ class AnySearchDiscovery:
         directories = {'proff.no', 'purehelp.no', 'virksomhet.brreg.no', 'firmalisten.no', 'firmadatabasen.no',
                        'regnskapsbasen.no', 'biztrac.no', 'soom.no', 'gulesider.no', '1881.no',
                        'tracxn.com', 'yra.no', 'vexter.no', 'facebook.com', 'linkedin.com'}
-        for query in queries[:self.receipt['max_queries_per_company']]:
+        words = [word for word in re.findall(r'\w+', name.casefold()) if len(word) >= 3 and word not in {'as', 'asa'}]
+        for query_index, query in enumerate(queries[:self.receipt['max_queries_per_company']]):
+            if query_index == 1:
+                likely_host = next((urlsplit(candidate).hostname for candidate in candidates
+                    if any(word in urlsplit(candidate).hostname.casefold() for word in words)
+                    and not urlsplit(candidate).hostname.startswith(('newsroom.', 'news.', 'blog.'))), None)
+                if likely_host:
+                    # First-party host is only a search lead. Exact org proof is
+                    # still required, including when the first page is foreign.
+                    query = 'site:' + likely_host.removeprefix('www.') + ' "' + spaced + '"'
             payload = json.dumps({'query': query, 'max_results': 10, 'zone': 'intl', 'format': 'json'}).encode()
             raw, _ = self.fetcher.get('https://api.anysearch.com/v1/search', {'api.anysearch.com'}, request_body=payload)
             body = loads(raw)
@@ -125,7 +134,6 @@ class AnySearchDiscovery:
                         candidates[index] = url
                     continue
                 candidates.append(url); hosts.add(host)
-        words = [word for word in re.findall(r'\w+', name.casefold()) if len(word) >= 3 and word not in {'as', 'asa'}]
         def rank(url):
             parts = urlsplit(url)
             return (not any(word in parts.hostname.casefold() for word in words),

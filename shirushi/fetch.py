@@ -8,7 +8,7 @@ import time
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
 
 USER_AGENT = 'Shirushi/0.1'
@@ -229,7 +229,10 @@ class Fetcher:
         address = public_addresses(parts.hostname)[0]
         connection = PinnedHTTPS(parts.hostname, address, timeout)
         try:
-            connection.request('POST' if request_body is not None else 'GET', parts.path + ('?' + parts.query if parts.query else ''), body=request_body,
+            target = quote(parts.path or '/', safe="/%:@!$&'()*+,;=-._~")
+            if parts.query:
+                target += '?' + quote(parts.query, safe="%/?@!$&'()*+,;=:-._~")
+            connection.request('POST' if request_body is not None else 'GET', target, body=request_body,
                                headers={'User-Agent': USER_AGENT, 'Accept-Encoding': 'identity',
                                         'Accept': 'application/json,text/html,text/plain',
                                         **({'Content-Type': 'application/json'} if request_body is not None else {}), **(request_headers or {})})

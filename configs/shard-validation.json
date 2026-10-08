@@ -1,0 +1,29 @@
+{
+  "contract_version": "shirushi-local-v1",
+  "mode": "local",
+  "sample_size": 100,
+  "wall_time_seconds": 2700,
+  "request_budget": 2000,
+  "third_party_cost_usd": 0,
+  "workers": 8,
+  "per_host_concurrency": 1,
+  "request_timeout_seconds": 10,
+  "max_retries": 1,
+  "finalization_reserve_fraction": 0.1,
+  "max_response_bytes": 2097152,
+  "max_pdf_bytes": 26214400,
+  "network_enabled": true,
+  "enabled_sources": [
+    "brreg_entity",
+    "brreg_roles",
+    "brreg_accounts",
+    "brreg_subunits",
+    "nav_jobs",
+    "company_owned"
+  ],
+  "settings_origin": "Organizer limits from Soham 2026-10-08; local combined-shard validation, official frozen-registry adapter pending",
+  "max_total_bytes": 209715200,
+  "min_host_interval_seconds": 0.25,
+  "max_pages_per_company": 6,
+  "routing_policy": "fixed"
+}

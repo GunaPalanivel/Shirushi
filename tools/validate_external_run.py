@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--cohort', choices=['development', 'validation'], required=True)
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--discovery-access-receipt', type=Path)
+    parser.add_argument('--config', type=Path, default=ROOT / 'configs/local-external.json')
     args = parser.parse_args()
     pool = ROOT / 'benchmarks/external-coverage'
     manifest = load(pool / 'manifest.json')
@@ -29,9 +30,8 @@ def main():
     directory = args.output_dir.resolve()
     directory.mkdir(parents=True, exist_ok=False)
     (directory / 'input.jsonl').write_bytes(raw)
-    config = load(ROOT / 'configs/local-external.json')
-    config.update(request_budget=1000,
-                  wall_time_seconds=1200, sample_size=len(inputs), routing_policy='fixed')
+    config = load(args.config)
+    config.update(sample_size=len(inputs), routing_policy='fixed')
     (directory / 'config.json').write_text(json.dumps(config, indent=2) + '\n', encoding='utf-8')
     command = [sys.executable, '-X', 'dev', '-W', 'error', '-m', 'shirushi.run', '--live',
         '--organisations', str(directory / 'input.jsonl'), '--config', str(directory / 'config.json'),
@@ -39,7 +39,7 @@ def main():
         '--run-id', 'external-' + args.cohort]
     if args.discovery_access_receipt:
         command += ['--discovery-access-receipt', str(args.discovery_access_receipt)]
-    process = subprocess.run(command, cwd=ROOT, check=False, timeout=1230)
+    process = subprocess.run(command, cwd=ROOT, check=False, timeout=config['wall_time_seconds'] + 30)
     rows = read_envelopes(directory / 'envelopes.jsonl')
     report = load(directory / 'report.json')
     errors = validate_envelopes(inputs, rows, load(ROOT / 'contracts/company-envelope.v1.json'))

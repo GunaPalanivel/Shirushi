@@ -68,11 +68,19 @@ V2 live source audits and both equal-budget positive-opportunity comparisons.
 Exact live outcomes, costs and head-bound CI links are recorded in PR #3 and
 its validation artifacts before merge; local tests do not substitute for them.
 
-The official contract states a current 1,000-company batch, possibly 1,100. The
-1,500-company state stress is synthetic. The next integration needs the team's
-wire sample, numeric resource limits and model-run API response, then official
-calibration and scheduled-run stability. Do not invent those settings or an
-80-point result from local company coverage.
+Soham's 8 October reply confirms 100-company shards, 45 minutes, 8 vCPU,
+16 GB RAM, 10 GB temporary disk, 2,000 outbound requests and $10 external API
+spend per shard. Search/model calls count. No personal credentials or general
+Brave key are supplied. Revisions close before the end of 18 October UTC.
+The public starter supplies a minimal output example and submission command;
+the next boundary integration must map its semantics and consume the supplied
+frozen registry. See [updated release plan](official-80plus-release-plan.md)
+and the hash-bound [limit receipt](organizer-run-limits.json).
+
+The final-head workflow additionally runs the combined six-source pipeline on
+100 frozen companies using `configs/shard-validation.json`. This is local
+validation within confirmed limits; it does not substitute for the official
+frozen-registry integration or assign competition points.
 
 Exclude PDF finance, full financial history, general research agents and a
 learned planner from this PR. The existing empirical scheduler remains a route

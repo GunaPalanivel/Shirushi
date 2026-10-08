@@ -133,6 +133,33 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  combined-shard:
+    name: Combined 100-company shard within organizer limits
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up pinned Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: Audit all enabled sources on one supplied test shard
+        run: python -X dev -W error tools/validate_external_run.py --cohort development --output-dir out/combined-shard --config configs/shard-validation.json --discovery-access-receipt configs/anysearch-anonymous.json
+      - name: Retain bound shard summary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: combined-shard-${{ github.run_id }}
+          path: |
+            out/combined-shard/validation.json
+            out/combined-shard/config.json
+            out/combined-shard/input.jsonl
+          if-no-files-found: error
+          retention-days: 14
+
   live-smoke:
     name: Fresh financial coverage and source audit
     runs-on: ubuntu-24.04

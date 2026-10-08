@@ -10,7 +10,7 @@ from unittest.mock import patch
 from shirushi.contracts import ROOT, load, validate_envelopes
 from shirushi.discovery import AnySearchDiscovery
 from shirushi.fetch import Budget, Fetcher, SourceUnavailable
-from shirushi.live import worker
+from shirushi.live import acquire_website, worker
 from shirushi.nav_jobs import HOST, SUBUNIT, NavFeed, check_nav
 from shirushi.refresh import merge
 from shirushi.snapshots import SnapshotStore, digest
@@ -189,6 +189,19 @@ class CoverageRepairTests(unittest.TestCase):
         with self.assertRaises(SourceUnavailable): fetcher.get('https://example.com/v1/search', {'example.com'}, request_body=b'{}')
         self.assertEqual(budget.requests, 0)
 
+    def test_international_path_and_query_are_encoded_at_http_boundary(self):
+        from unittest.mock import MagicMock
+        config = load(ROOT / 'configs/local-live.json')
+        fetcher = Fetcher(Budget(config, time.monotonic() + 3))
+        connection = MagicMock()
+        response = connection.getresponse.return_value
+        response.isclosed.return_value = True
+        response.status = 200; response.getheaders.return_value = []
+        with patch('shirushi.fetch.public_addresses', return_value=['8.8.8.8']), \
+                patch('shirushi.fetch.PinnedHTTPS', return_value=connection):
+            fetcher._request('https://example.com/tjenester/r\u00f8r?q=bl\u00e5%20pumpe', 1, 1024)
+        self.assertEqual(connection.request.call_args.args[1], '/tjenester/r%C3%B8r?q=bl%C3%A5%20pumpe')
+
     def test_anysearch_uses_name_and_exact_org_and_prefers_legal_page(self):
         config = load(ROOT / 'configs/local-live.json'); config.update(min_host_interval_seconds=0, max_retries=0)
         budget = Budget(config, time.monotonic() + 3); calls = []
@@ -198,7 +211,41 @@ class CoverageRepairTests(unittest.TestCase):
             return 200, {}, json.dumps({'code': 0, 'data': {'results': [{'url': candidate}, {'url': 'https://proff.no/directory'}]}}).encode()
         search = AnySearchDiscovery(Fetcher(budget, transport), {'request_interval_seconds': .02, 'max_queries_per_company': 2, 'max_candidates': 3})
         self.assertEqual(search.candidates(SUBJECT, {'navn': 'Example AS'}), ['https://example.com/nb-no/terms'])
-        self.assertIn('Example AS', calls[0]['query']); self.assertIn(SUBJECT, calls[1]['query'].replace(' ', ''))
+        self.assertIn('Example AS', calls[0]['query'])
+        self.assertEqual(calls[1]['query'], 'site:example.com "942 037 538"')
+
+    def test_discovery_foreign_locale_is_a_lead_not_ownership(self):
+        config = load(ROOT / 'configs/local-live.json'); config.update(min_host_interval_seconds=0, max_retries=0)
+        budget = Budget(config, time.monotonic() + 3); calls = []
+        def transport(url, timeout, limit, headers, body):
+            calls.append(json.loads(body)['query'])
+            urls = (['https://example.com/fr-ch/contact', 'https://newsroom.example.com/press',
+                     'https://reseller.no/product'] if len(calls) == 1 else ['https://example.com/nb-no/terms'])
+            return 200, {}, json.dumps({'code': 0, 'data': {'results': [{'url': u} for u in urls]}}).encode()
+        search = AnySearchDiscovery(Fetcher(budget, transport), {'request_interval_seconds': .02,
+            'max_queries_per_company': 2, 'max_candidates': 3})
+        self.assertEqual(search.candidates(SUBJECT, {'navn': 'Example AS'})[0], 'https://example.com/nb-no/terms')
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[1], 'site:example.com "942 037 538"')
+
+    def test_non_html_candidate_does_not_abort_later_ownership_check(self):
+        class Discovery:
+            def candidates(self, subject, entity):
+                return ['https://files.example.no/report', 'https://example.no/terms']
+        class Pages:
+            def get(self, url, hosts, robots=False):
+                if 'files.' in url:
+                    return b'%PDF-1.7', {'content_type': 'application/pdf', 'effective_url': url}
+                if url.endswith('/terms'):
+                    raw = ('<p>These terms govern purchases between Example AS and its customers. '
+                           'Organisation number 942 037 538.</p>').encode()
+                else:
+                    raw = b'<p>No offers.</p>'
+                return raw, {'content_type': 'text/html; charset=utf-8', 'effective_url': url}
+        pages, failures, funnel = acquire_website(Pages(), SUBJECT, {'navn': 'Example AS'}, Discovery(), 3)
+        self.assertEqual(pages[0][1]['effective_url'], 'https://example.no/terms')
+        self.assertIn('not HTML', failures[0]['reason'])
+        self.assertEqual(funnel['candidate_identity_rejections'], 0)
 
     def test_sampler_does_not_round_away_employers_in_many_industry_cells(self):
         rows = [{'organisation_number': f'{i:09}', 'employees': 0 if i < 850 else 20,
