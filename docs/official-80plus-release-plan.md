@@ -31,7 +31,7 @@ mean determines ranking; one favorable test does not determine first place.
 | CPU / RAM / disk | 8 vCPU / 16 GB / 10 GB | Test in a constrained clean environment; bound snapshots and product artifacts |
 | Outbound requests | 2,000 | One atomic ledger includes search, model, robots, redirects and retries |
 | External API spend | $10 | Default remains $0; proposed paid-use ceiling $8 with $2 reserve once access/pricing is confirmed |
-| Credentials | No personal service credentials | Anonymous fallback; provisioned provider and environment variable confirmed before freeze |
+| Credentials | No personal service credentials | Bounded legal-name domain hypotheses without a provider; optional anonymous search; provisioned provider and environment variable confirmed before freeze |
 | Revisions | Initial plus four revisions | Use revisions for measured gains or official feedback |
 | Final revision | Before end of 18 October UTC | Internal freeze on 17 October; submit before the deadline |
 
@@ -99,6 +99,15 @@ HTML attempts, same-host/locale scope and unchanged exact seller checks. A
 recorded-source replay now recovers ownership from the foreign candidate.
 Two company-gain jobs also failed with an incomplete-batch diagnostic; retain
 the worker reason in the next summary and resolve it before merge.
+
+At `4f92fbb8`, one full workflow passed all nine checks, while the other failed
+its first search call with HTTP 402. Test a credential-free path that derives at
+most two untrusted domain hypotheses from the verified legal name, applies the
+same ownership/sitemap checks, and suppresses repeated quota calls. Validate a
+separate hosted website run with search disabled. Validate response shapes so
+malformed success JSON cannot terminate the worker. The prior incomplete-batch
+reason was not retained, so this independently reproduced crash must not be
+presented as the proven cause of that old failure.
 
 Both full `c51a0486` workflows finished with eight jobs passing and the website
 regression failing. The combined six-source shard produced every output in

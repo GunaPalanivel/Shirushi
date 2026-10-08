@@ -98,6 +98,38 @@ generic `Incomplete or failed live batch`. The next diagnostic summary retains
 the existing run errors, failed-company count and worker completion/reason.
 That failure is unresolved; do not claim it repaired or erase it with a rerun.
 
+## Quota and malformed-response validation
+
+Both full `4f92fbb8` workflows finished. PR run
+[37821934250](https://github.com/GunaPalanivel/Shirushi/actions/runs/37821934250)
+passed all nine checks. Push run
+[37821927955](https://github.com/GunaPalanivel/Shirushi/actions/runs/37821927955)
+failed only website discovery: HTTP 402 occurred on its first search call, so
+there was no candidate domain for sitemap traversal. A favorable anonymous-IP
+quota outcome is not sufficient production acceptance.
+
+The next repair classifies 402 as blocked and suppresses subsequent calls in
+that worker. It uses at most two untrusted `.com`/`.no` domain hypotheses derived
+from the verified legal name when search is unavailable or supplies no usable
+candidate. This path also works when no discovery receipt/provider is configured.
+Neither a generated hostname nor a sitemap is identity evidence. Publication
+still requires the exact legal operator, observed locale scope and source audit.
+No company-specific hostname is embedded in the algorithm.
+
+A recorded-page replay starts with a derived root domain, follows the observed
+Norwegian alternate and the advertised sitemap, and verifies the seller terms
+with six HTML attempts and two metadata reads. This is a replay, not a production
+run. The next hosted website job checks both anonymous discovery and a separate
+run with search explicitly disabled, each under 50 requests and 180 seconds.
+
+Independently, success-shaped search JSON with `data: null`, `data: []` or a
+non-object body reproduced an uncaught `AttributeError` in the old adapter.
+The worker does not catch that exception in its source acquisition boundary.
+The repair validates these shapes and raises a source failure, preserving batch
+completion; full worker/source-audit tests cover malformed responses, 402 and
+no provider. These tests do not identify the earlier lost incomplete-batch reason
+as this defect. Updated diagnostics preserve the reason if it recurs.
+
 ## Organizer email and release decision
 
 Soham confirms 100-company shards, 45 minutes, 8 vCPU, 16 GB RAM, 10 GB temporary

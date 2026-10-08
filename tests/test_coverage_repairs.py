@@ -175,6 +175,11 @@ class CoverageRepairTests(unittest.TestCase):
         def transport(fetcher, url, timeout, limit, headers=None, request_body=None):
             seen.append(url)
             if 'api.anysearch.com' in url:
+                mode = getattr(self, '_search_mode', 'empty_exact')
+                if mode == 'quota':
+                    return 402, {'content-type': 'application/json'}, b'{"code":-1,"message":"sensitive-provider-message"}'
+                if mode == 'malformed':
+                    return 200, {'content-type': 'application/json'}, b'{"code":0,"data":null}'
                 query = json.loads(request_body)['query']
                 results = [] if '942 037 538' in query else [{'url': 'https://example.com/fr/contact'}]
                 raw, kind = json.dumps({'code': 0, 'data': {'results': results}}).encode(), 'application/json'
@@ -188,7 +193,7 @@ class CoverageRepairTests(unittest.TestCase):
                 raw, kind = b'<urlset><url><loc>https://other.example/nb-no/terms</loc></url><url><loc>https://example.com/nb-no/terms</loc></url></urlset>', 'application/xml'
             elif url.endswith('/terms'):
                 raw, kind = b'<p>Terms for purchase agreements between Example AS, organization no. 942037538 and customers.</p>', 'text/html'
-            elif url.endswith('/fr/contact'):
+            elif url.endswith('/fr/contact') or url in ('https://example.com/', 'https://example.no/'):
                 raw, kind = b'<a data-language="NB-NO" href="/nb-no/">Norsk</a>', 'text/html'
             else:
                 raw, kind = b'<a href="/nb-no/legal-notice">Legal</a><a href="/nb-no/om-oss/jobs">Careers</a><a href="/nb-no/products/work-jacket">Work jacket</a>', 'text/html'
@@ -197,6 +202,8 @@ class CoverageRepairTests(unittest.TestCase):
         job = {'store': self.store.root, 'subjects': [SUBJECT], 'previous': {}, 'config': config,
                'deadline': time.monotonic() + 5, 'started_at': WHEN, 'run_id': 'sitemap-traversal',
                'discovery': {'provider': 'anysearch', 'max_queries_per_company': 2, 'max_candidates': 3, 'request_interval_seconds': .02}}
+        if getattr(self, '_search_mode', None) == 'no_provider':
+            job['discovery'] = None
         with patch('shirushi.fetch.Fetcher._request', transport): worker(Connection(), job)
         self.assertFalse([f for f in frames if f[0] == 'fatal'])
         result = next(f[2]['envelope'] for f in frames if f[0] == 'result')
@@ -211,6 +218,31 @@ class CoverageRepairTests(unittest.TestCase):
         for claim in result['claims']: audit.claim(SUBJECT, claim, evidence)
         requests = next(f[2]['requests'] for f in reversed(frames) if f[0] == 'accounting')
         self.assertEqual(requests, len(seen))
+        self.assertNotIn('sensitive-provider-message', json.dumps(frames))
+        if getattr(self, '_search_mode', None) == 'no_provider':
+            self.assertFalse([u for u in seen if 'api.anysearch.com' in u])
+
+    def test_worker_keeps_verified_outputs_with_quota_malformed_or_no_provider(self):
+        for mode in ('quota', 'malformed', 'no_provider'):
+            with self.subTest(mode=mode):
+                self._search_mode = mode
+                self.test_sitemap_recovers_unlinked_seller_terms_after_empty_exact_search()
+
+    def test_malformed_search_is_a_source_failure_and_quota_is_single_flight(self):
+        config = load(ROOT / 'configs/local-live.json'); config.update(max_retries=0, min_host_interval_seconds=0)
+        receipt = {'request_interval_seconds': .02, 'max_queries_per_company': 2, 'max_candidates': 3}
+        for value in (None, {'code': 0, 'data': None}, {'code': 0, 'data': []}, {'code': 0, 'data': {'results': None}}):
+            with self.subTest(value=value):
+                budget = Budget(config, time.monotonic() + 3)
+                search = AnySearchDiscovery(Fetcher(budget, lambda *a: (200, {}, json.dumps(value).encode())), receipt)
+                with self.assertRaisesRegex(SourceUnavailable, 'Invalid discovery response'):
+                    search.candidates(SUBJECT)
+        budget = Budget(config, time.monotonic() + 3)
+        search = AnySearchDiscovery(Fetcher(budget, lambda *a: (402, {}, b'sensitive-provider-message')), receipt)
+        self.assertEqual(search.candidates(SUBJECT, {'navn': 'Example AS'}), ['https://example.com/', 'https://example.no/'])
+        self.assertEqual(search.candidates(EMPLOYER, {'navn': 'Another AS'}), ['https://another.com/', 'https://another.no/'])
+        self.assertEqual(budget.requests, 1)
+        self.assertNotIn('sensitive-provider-message', json.dumps(search.diagnostics))
 
     def test_sitemap_rejects_entities_unsafe_hosts_and_wrong_locale(self):
         from shirushi.web_sources import sitemap_links

@@ -109,7 +109,7 @@ jobs:
   website-opportunity:
     name: Live legal-seller website regression
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
       - name: Check out source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -121,6 +121,8 @@ jobs:
           python-version: '3.12.12'
       - name: Audit live discovery, legal ownership and catalogue coverage
         run: python -X dev -W error tools/validate_website_opportunity.py
+      - name: Audit credential-free discovery without any search provider
+        run: python -X dev -W error tools/validate_website_opportunity.py --without-search --output-dir out/website-no-search
       - name: Retain bound website audit
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -130,6 +132,9 @@ jobs:
             out/website-opportunity/validation.json
             out/website-opportunity/config.json
             out/website-opportunity/input.jsonl
+            out/website-no-search/validation.json
+            out/website-no-search/config.json
+            out/website-no-search/input.jsonl
           if-no-files-found: error
           retention-days: 14
 

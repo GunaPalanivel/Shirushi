@@ -11,7 +11,7 @@ from .batch import envelope
 from .claims import claim_id, slot
 from .contracts import loads, timestamp
 from .extraction import Candidate
-from .discovery import AnySearchDiscovery, BraveDiscovery
+from .discovery import AnySearchDiscovery, BraveDiscovery, LegalNameDiscovery
 from .html_sources import operator_proof
 from .fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, safe_url, website_candidate, website_hosts
 from .planner import Planner, ROUTE_FAMILIES
@@ -230,7 +230,7 @@ def worker(connection, job):
     pool = ThreadPoolExecutor(max_workers=job['config']['workers'], thread_name_prefix='shirushi-io')
     fetcher, planner = Fetcher(budget), Planner(job['config']['routing_policy'])
     discovery = ((AnySearchDiscovery if job['discovery'].get('provider') == 'anysearch' else BraveDiscovery)
-                 (fetcher, job['discovery']) if job.get('discovery') else None)
+                 (fetcher, job['discovery']) if job.get('discovery') else LegalNameDiscovery())
     nav = NavFeed(fetcher) if 'nav_jobs' in job['config']['enabled_sources'] else None
     subjects, previous = job['subjects'], job['previous']
     states = {s: {'decisions': [], 'attempts': [], 'entity': None, 'failure': None} for s in subjects}
@@ -351,7 +351,7 @@ def worker(connection, job):
             report = {'source': route, 'status': 'checked'}
             if route == 'company_owned':
                 report['funnel'] = dict(acquired['funnel'])
-                if isinstance(discovery, AnySearchDiscovery):
+                if isinstance(discovery, (AnySearchDiscovery, LegalNameDiscovery)):
                     report['discovery'] = discovery.diagnostics.get(subject, [])
             if acquired['page_failures']:
                 report['page_failures'] = acquired['page_failures']

@@ -1,4 +1,5 @@
 """Live regression for the observed no-hint legal-seller/catalogue failure."""
+import argparse
 import json
 import subprocess
 import sys
@@ -12,7 +13,11 @@ from shirushi_eval.support import SourceAudit
 
 
 def main():
-    directory = ROOT / 'out/website-opportunity'
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--without-search', action='store_true')
+    parser.add_argument('--output-dir', type=Path, default=ROOT / 'out/website-opportunity')
+    args = parser.parse_args()
+    directory = args.output_dir.resolve()
     directory.mkdir(parents=True, exist_ok=False)
     inputs = [{'organisation_number': '915463568'}]
     (directory / 'input.jsonl').write_text(json.dumps(inputs[0]) + '\n')
@@ -20,11 +25,13 @@ def main():
     config.update(enabled_sources=['brreg_entity', 'company_owned'], sample_size=1,
                   wall_time_seconds=180, request_budget=50)
     (directory / 'config.json').write_text(json.dumps(config, indent=2) + '\n')
-    process = subprocess.run([sys.executable, '-X', 'dev', '-W', 'error', '-m', 'shirushi.run', '--live',
+    command = [sys.executable, '-X', 'dev', '-W', 'error', '-m', 'shirushi.run', '--live',
         '--organisations', str(directory / 'input.jsonl'), '--config', str(directory / 'config.json'),
         '--output', str(directory / 'envelopes.jsonl'), '--report', str(directory / 'report.json'),
-        '--run-id', 'website-opportunity', '--discovery-access-receipt',
-        str(ROOT / 'configs/anysearch-anonymous.json')], cwd=ROOT, check=False, timeout=210)
+        '--run-id', 'website-opportunity']
+    if not args.without_search:
+        command += ['--discovery-access-receipt', str(ROOT / 'configs/anysearch-anonymous.json')]
+    process = subprocess.run(command, cwd=ROOT, check=False, timeout=210)
     rows = read_envelopes(directory / 'envelopes.jsonl')
     report = load(directory / 'report.json')
     errors = validate_envelopes(inputs, rows, load(ROOT / 'contracts/company-envelope.v1.json'))
@@ -41,6 +48,7 @@ def main():
                 counts[claim['field']] = counts.get(claim['field'], 0) + 1
     passed = not errors and not process.returncode and counts.get('verified_website', 0) > 0 and counts.get('product_service', 0) > 0
     result = {'status': 'PASS' if passed else 'FAIL', 'claims_by_field': counts,
+        'discovery_mode': 'legal_name_hypotheses_only' if args.without_search else 'anonymous_with_credential_free_fallback',
         'verified_website_companies': int(counts.get('verified_website', 0) > 0),
         'verified_product_companies': int(counts.get('product_service', 0) > 0),
         'operations': report['operations'], 'errors': errors, 'attempts': report['companies'],

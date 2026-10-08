@@ -325,7 +325,7 @@ class Fetcher:
                 retries += 1
                 continue
             if status != 200:
-                state = 'not_available' if status == 404 else 'blocked' if status in (401, 403, 429) else 'failed'
+                state = 'not_available' if status == 404 else 'blocked' if status in (401, 402, 403, 429) else 'failed'
                 error = SourceUnavailable(f'HTTP {status}', state)
                 error.response = (raw, {'source_url': original, 'effective_url': url, 'http_status': status,
                     'retrieved_at': datetime.now(timezone.utc).isoformat(),

@@ -1,8 +1,9 @@
-"""One permitted discovery adapter. Search text is never retained or published."""
+"""Bounded untrusted discovery leads; search content is never evidence."""
 import os
 import json
 import re
 import threading
+import unicodedata
 from urllib.parse import urlencode, urlsplit
 
 from .contracts import load, loads, timestamp
@@ -11,6 +12,33 @@ from .snapshots import digest
 
 ENDPOINT = 'https://api.search.brave.com/res/v1/web/search'
 COST_PER_ATTEMPT_USD = BRAVE_REQUEST_COST_USD  # No credit assumptions.
+
+
+def legal_name_candidates(name):
+    """Two domain hypotheses from a verified legal name, never ownership proof."""
+    if not isinstance(name, str):
+        return []
+    words = re.findall(r'\w+', name.casefold())
+    while words and words[-1] in {'as', 'asa', 'ans', 'da', 'enk', 'nuf', 'sa', 'ba'}:
+        words.pop()
+    stem = ''.join(words).replace('ø', 'o').replace('æ', 'ae').replace('å', 'a')
+    stem = ''.join(c for c in unicodedata.normalize('NFKD', stem) if c.isascii() and c.isalnum())
+    if not 3 <= len(stem) <= 63 or stem.isdecimal():
+        return []
+    return ['https://' + stem + suffix + '/' for suffix in ('.com', '.no')]
+
+
+class LegalNameDiscovery:
+    """No search service or credentials; publication still requires exact proof."""
+    def __init__(self):
+        self.diagnostics = {}
+
+    def candidates(self, subject, entity=None):
+        if re.fullmatch('[0-9]{9}', subject) is None:
+            raise ValueError('Exact organisation number required')
+        leads = legal_name_candidates((entity or {}).get('navn'))
+        self.diagnostics[subject] = [{'source': 'legal_name_hypothesis', 'candidate_urls': leads}]
+        return leads
 
 
 def access_receipt(path):
@@ -77,18 +105,31 @@ class AnySearchDiscovery:
         fetcher.budget.set_host_interval('api.anysearch.com', receipt['request_interval_seconds'])
 
     def candidates(self, subject, entity=None):
+        if re.fullmatch('[0-9]{9}', subject) is None:
+            raise ValueError('Exact organisation number required')
         while not self.lock.acquire(timeout=0.05):
             self.fetcher.budget.remaining()
         try:
+            self.diagnostics[subject] = []
             if self.error:
                 raise SourceUnavailable(self.error, 'blocked')
-            return self._candidates(subject, entity)
+            leads = self._candidates(subject, entity)
+            return leads or self._fallback(subject, entity, 'No usable search candidate')
         except SourceUnavailable as exc:
             if exc.availability == 'blocked':
                 self.error = 'Anonymous discovery unavailable: ' + str(exc)
+            leads = self._fallback(subject, entity, str(exc))
+            if leads:
+                return leads
             raise
         finally:
             self.lock.release()
+
+    def _fallback(self, subject, entity, reason):
+        leads = legal_name_candidates((entity or {}).get('navn'))[:self.receipt['max_candidates']]
+        self.diagnostics[subject].append({'source': 'legal_name_hypothesis', 'reason': reason,
+                                         'candidate_urls': leads})
+        return leads
 
     def _candidates(self, subject, entity=None):
         if re.fullmatch('[0-9]{9}', subject) is None:
@@ -115,9 +156,14 @@ class AnySearchDiscovery:
             payload = json.dumps({'query': query, 'max_results': 10, 'zone': 'intl', 'format': 'json'}).encode()
             raw, _ = self.fetcher.get('https://api.anysearch.com/v1/search', {'api.anysearch.com'}, request_body=payload)
             body = loads(raw)
+            if not isinstance(body, dict):
+                raise SourceUnavailable('Invalid discovery response')
             if body.get('code') != 0:
                 raise SourceUnavailable('Anonymous discovery quota or provider error', 'blocked')
-            results = body.get('data', {}).get('results', [])
+            data = body.get('data')
+            if not isinstance(data, dict):
+                raise SourceUnavailable('Invalid discovery response')
+            results = data.get('results', [])
             if not isinstance(results, list):
                 raise SourceUnavailable('Invalid discovery response')
             self.diagnostics[subject].append({'query': query,
