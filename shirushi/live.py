@@ -42,10 +42,10 @@ def unique_decisions(decisions):
 
 
 def covered_families(claims):
-    # A registry URL is a discovery lead, not proof of owned-page coverage.
+    # Registry URLs and registered activities are facts/leads, not verified external coverage.
     # Keep historical claim metadata compatible, but do not schedule from it.
     return {family for claim in claims
-            if claim['availability'] == 'available' and claim['field'] != 'declared_website'
+            if claim['availability'] == 'available' and claim['field'] not in ('declared_website', 'registered_activity')
             for family in [claim.get('family') or ('people' if claim['field'].startswith('registered_role:') else None)]
             if family is not None}
 

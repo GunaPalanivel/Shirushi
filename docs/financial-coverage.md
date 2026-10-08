@@ -10,7 +10,7 @@ This evaluator tests only the nine explicitly mapped fields in successfully acqu
 
 ## Input, output and interpretation
 
-The registry website claim remains a retained discovery lead; it no longer marks verified owned-page coverage as covered. Historical claim metadata remains compatible.
+The registry website claim remains a retained discovery lead; it does not mark verified owned-page coverage as covered. Registered activity remains a sourced registry fact; it does not mark verified business/product/service coverage as covered. The same rule controls published opportunities and planner gain/selection feedback. Profile summaries label it Registered activity. Historical claim metadata remains compatible.
 
 The existing exact-organisation accounts endpoint and retained receipts feed proposals in `shirushi/api_sources.py`, its source checker, canonical claims, refresh and the existing profile renderer. No new network route, dependency, model, licence or setting is introduced. Missing and null amounts remain unknown. Explicit zero and negative results survive. No sums, ratios, foreign-exchange conversions or inferred balances are published.
 
@@ -77,3 +77,11 @@ The first hosted challenger completed 100 outputs, but auditing failed before so
 | Shared gate | External recall across the six families | Independently search/adjudicate missing opportunities on development and disjoint validation cohorts; report company coverage first, facts second, then marginal cost and failure stage |
 
 Promote the next retrieval mechanism for repeatable new-company coverage under equal budgets, with no material identity/support regression. Do not keep optimizing BRREG fact depth while missing website/product/jobs/activity opportunities remain unmeasured. Adaptive scheduling remains a later controlled comparison with identical adapters, budgets and source conditions. Official equivalence, settings/adapter, product acceptance and an official run remain release gates.
+
+## Score and reliability interpretation
+
+The board reviewed 5 October reports maximum recall 17.45/50. Even the hypothetical combination of that recall with 29 evidence, 12 synthesis and 8 UX totals only **66.45**. These component achievements come from different entrants; no combined result is established. At those non-recall targets, reaching 80 requires **31 recall points**, 13.55 more than the current highest observed recall. The existing financial source-subset gain cannot supply an official-point estimate.
+
+80+ remains a stretch breakthrough objective requiring substantially stronger cross-family company recall, source selection and long-tail discovery, measured on independent cohorts and calibrated by official feedback. Retain the fixed source baseline until adaptive selection improves held-out company coverage under the same budget. Long-tail cohorts must include sparse sites, absent registry URL leads, aliases/group attribution, and differing source availability, rather than only source-rich companies.
+
+Builderr ranks qualified entries by the mean of scheduled daily batches and assigns reproduced entrant-caused failures zero. For illustration, two valid scores of 70 average 70; an 80 followed by an entrant-caused zero averages 40. This is arithmetic under the published ranking rule, not a forecast that Shirushi scores 70. Reliable competitive daily performance is the operational prerequisite for pursuing 80+, not a replacement for the first-prize objective. Preserve bounded execution, terminal outputs, refresh and supported rollback while expanding external recall.

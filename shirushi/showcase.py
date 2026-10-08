@@ -23,7 +23,8 @@ def summary(envelope):
     description = next((c for c in available if c['field'] in ('business_description', 'registered_activity')), None)
     lines = [text(name) + ' (' + envelope['organisation_number'] + ').']
     if description:
-        lines.append('Supported description: ' + text(description['value']) + '.')
+        label = 'Registered activity: ' if description['field'] == 'registered_activity' else 'Supported description: '
+        lines.append(label + text(description['value']) + '.')
     lines.append(str(len(envelope['changes'])) + ' supported value changes in this run.')
     unknown = [o['family'] for o in envelope.get('opportunities', []) if o['status'] != 'covered']
     if unknown:

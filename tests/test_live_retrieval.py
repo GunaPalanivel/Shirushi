@@ -11,7 +11,7 @@ from unittest.mock import patch
 from shirushi.api_sources import ACCOUNTS, ENTITY, check_api, propose_api
 from shirushi.contracts import ROOT, load, validate_envelopes
 from shirushi.fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, public_addresses, safe_url
-from shirushi.live import unique_decisions, worker
+from shirushi.live import covered_families, unique_decisions, worker
 from shirushi.refresh import merge
 from shirushi.showcase import render
 from shirushi.snapshots import SnapshotStore, digest
@@ -224,6 +224,35 @@ class LiveSourceTests(unittest.TestCase):
             opportunity = next(o for o in row['opportunities'] if o['family'] == 'website_owned_profiles')
             self.assertEqual(opportunity['status'], 'unknown')
             self.assertTrue(any(c['field'] == 'coverage:website_owned_profiles' for c in row['claims']))
+
+    def test_registered_activity_keeps_verified_business_coverage_unknown_in_profile(self):
+        output, _ = self.run_worker()
+        for row in output:
+            self.assertTrue(any(c['field'] == 'registered_activity' and c['availability'] == 'available'
+                                for c in row['claims']))
+            opportunity = next(o for o in row['opportunities'] if o['family'] == 'business_products')
+            self.assertEqual(opportunity['status'], 'unknown')
+        render(output, Path(self.temp.name) / 'site-activity')
+        page = (Path(self.temp.name) / 'site-activity/signalpost' / (SUBJECT + '.html')).read_text()
+        self.assertIn('Registered activity:', page)
+        self.assertIn('No verified coverage for: business_products', page)
+
+    def test_verified_site_business_description_still_covers_external_families(self):
+        anchor = self.save({'organisasjonsnummer': SUBJECT, 'hjemmeside': 'https://example.com/'}, 'brreg_entity')
+        body = {'@type': 'Organization', 'identifier': SUBJECT,
+                'description': 'Produces industrial pumps', 'url': 'https://example.com/'}
+        raw = ('<script type="application/ld+json">' + json.dumps(body) + '</script>').encode()
+        sid = self.store.save(raw, {'organisation_number': SUBJECT, 'source_class': 'company_owned',
+                                   'source_url': 'https://example.com/', 'effective_url': 'https://example.com/',
+                                   'retrieved_at': WHEN, 'http_status': 200, 'sha256': digest(raw),
+                                   'source_origin': 'example.com', 'declared_host': 'example.com', 'robots_checked': True,
+                                   'ownership_anchor_snapshot_id': anchor})
+        decisions = check_web(self.store, SUBJECT, sid)
+        self.assertEqual(covered_families([d['claim'] for d in decisions]),
+                         {'business_products', 'website_owned_profiles'})
+        for decision in decisions:
+            SourceAudit(self.store.root, [SUBJECT]).claim(SUBJECT, decision['claim'],
+                                                       {decision['evidence']['id']: decision['evidence']})
 
     def test_live_budget_failure_preserves_checked_facts_and_all_outputs(self):
         output, frames = self.run_worker(request_budget=3)

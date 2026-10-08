@@ -8,7 +8,7 @@ This implements the production foundation of the combined 80+ plan. It is not an
 
 | Route | Accepted facts | Bounds and limitations |
 |---|---|---|
-| BRREG entity | Legal name/form, explicitly registered employee count/address/activity, declared website lead | Activity is registered activity, not inferred products; a declared website is a discovery lead and does not mark verified owned-page coverage |
+| BRREG entity | Legal name/form, explicitly registered employee count/address/activity, declared website lead | Activity remains a registered fact and does not mark verified business/product coverage; a declared website is a discovery lead and does not mark verified owned-page coverage |
 | BRREG roles | Existing source-checked registered person roles | No inferred employment; an absent role does not establish removal |
 | BRREG accounts | Revenue, operating/pre-tax/net profit, assets, equity and total/current/long-term liabilities; separate entity/group scope and reporting periods, original currency units | Missing amounts remain unknown; no PDF parser or implied all-history access |
 | BRREG subunits | Registered operating sites with exact parent attribution | First bounded page only; further pagination remains a recall opportunity |
