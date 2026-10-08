@@ -75,7 +75,8 @@ def compare_accounts(envelopes, report, audit):
                 if identity in actual:
                     raise ValueError('Duplicate published financial slot')
                 actual[identity] = claim['value']
-    correct = {k for k, value in actual.items() if expected.get(k) == value}
+    correct = {k for k, value in actual.items() if type(value) is dict
+               and type(value.get('amount')) in (int, float) and expected.get(k) == value}
     unsupported = set(actual) - correct
     baseline = {k for k in correct if json.loads(k)[1] == 'annual_revenue'}
     positives = {json.loads(k)[0] for k in expected}

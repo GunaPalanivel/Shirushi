@@ -165,6 +165,27 @@ class FinancialCoverageTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify_previous(self.store, damaged, SUBJECT)
 
+    def test_boolean_money_in_forged_prior_state_or_candidate_cannot_equal_numeric_one(self):
+        record = filing()
+        record['eiendeler']['sumEiendeler'] = 1
+        sid, candidates, decisions = self.prepare([record])
+        asset = next(c for c in candidates if c.field == 'total_assets')
+        value = dict(asset.value, amount=True)
+        self.assertFalse(check_api(self.store, replace(asset, value=value), SUBJECT)['accepted'])
+        first = merge(None, decisions, WHEN)
+        damaged = copy.deepcopy(first)
+        claim = next(c for c in damaged['claims'] if c['field'] == 'total_assets')
+        claim['value']['amount'] = True
+        with self.assertRaises(ValueError):
+            verify_previous(self.store, damaged, SUBJECT)
+        with self.assertRaises(ValueError):
+            self.audit.claim(SUBJECT, claim, {e['id']: e for e in damaged['evidence']})
+        fake = next(d for d in decisions if d['field'] == 'total_assets')
+        fake = copy.deepcopy(fake)
+        fake['claim']['value']['amount'] = True
+        comparison = self.comparison(sid, [fake])
+        self.assertEqual(comparison['unsupported_publications'], 1)
+
     def test_reference_enumeration_detects_an_extraction_miss(self):
         sid, _, decisions = self.prepare([filing()])
         with patch('shirushi.api_sources.propose_api', side_effect=AssertionError('Maker imported')):

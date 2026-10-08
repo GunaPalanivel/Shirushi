@@ -137,6 +137,8 @@ def check_api(store, candidate, subject):
                 raise ValueError('Unsupported financial field')
             if type(value) not in (int, float) or not math.isfinite(value):
                 raise ValueError('Financial amount must be a finite supported number')
+            if type(candidate.value) is not dict or type(candidate.value.get('amount')) not in (int, float):
+                raise ValueError('Candidate financial amount must be numeric, never boolean')
             scope = {'SELSKAP': 'entity_accounts', 'KONSERN': 'group_accounts'}[record['regnskapstype']]
             period = account_period(record['regnskapsperiode'])
             currency = record['valuta']

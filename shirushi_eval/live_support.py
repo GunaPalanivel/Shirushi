@@ -86,6 +86,8 @@ def audit_api(subject, claim, item, receipt, raw):
         scope, period = financial_context(record, subject)
         item_key = None
         expected = financial_value(source, record, scope, period)
+        if type(claim['value']) is not dict or type(claim['value'].get('amount')) not in (int, float):
+            raise ValueError('Audit financial amount type differs from numeric source')
         if (claim.get('family') != 'financials_history' or locator != {
                 'path': path, 'scope': scope, 'family': 'financials_history', 'item_key': None, 'period': period}):
             raise ValueError('Audit financial locator context mismatch')

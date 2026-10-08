@@ -34,7 +34,7 @@ Every amount retains source currency and reporting period. `SELSKAP` and `KONSER
 2. An amount belongs to another org number, is boolean/string/nonfinite, or has an invalid date/currency: reject it. Excessive integers must reject without crashing the worker.
 3. Three periods and two scopes with nine fields create 54 distinct slots. Identical replay creates zero changes; revising one 2025 group-equity value creates one change and preserves old evidence.
 4. Two different currencies or amounts in one slot remain ambiguous. No duplicate count breaks the tie.
-5. An earlier revenue-only profile expands with new fields without false changes. Forged prior claim identity/family/period fails before refresh.
+5. An earlier revenue-only profile expands with new fields without false changes. Forged prior claim identity/family/period fails before refresh. Boolean money in a candidate or prior state is rejected even when Python would compare `True == 1`.
 
 A fresh exact HTTP-body replay for Equinor (`923609016`, acquired 8 October) ran both the actual main adapter and challenger against the same retained bytes: 6 versus 54 supported facts, zero replay changes, zero automated support errors. It used a separate proxy research request because workspace direct DNS is unavailable. Production safe acquisition requires hosted live results. Real bodies and receipts stay ignored.
 
