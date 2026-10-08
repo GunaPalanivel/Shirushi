@@ -4,7 +4,8 @@ import json
 import math
 import re
 from datetime import date
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
+from html.parser import HTMLParser
 
 from .reference import strict_json
 
@@ -106,14 +107,38 @@ def audit_api(subject, claim, item, receipt, raw):
         raise ValueError('Audit canonical claim identity mismatch')
 
 
+class StructuredScripts(HTMLParser):
+    def __init__(self, raw):
+        super().__init__()
+        self.items, self.current = [], None
+        self.feed(raw.decode('utf-8'))
+    def handle_starttag(self, tag, attrs):
+        if tag == 'script' and dict(attrs).get('type', '').lower() == 'application/ld+json':
+            self.current = ''
+    def handle_data(self, data):
+        if self.current is not None:
+            self.current += data
+    def handle_endtag(self, tag):
+        if tag == 'script' and self.current is not None:
+            self.items.append(self.current)
+            self.current = None
+
+
 def audit_web(subject, claim, item, receipt, raw):
     if (receipt.get('robots_checked') is not True or receipt.get('http_status') != 200
             or receipt.get('declared_host') != urlsplit(receipt['effective_url']).hostname):
         raise ValueError('Audit company source scope mismatch')
     # Parse the retained JSON-LD span independently, then resolve its declared node.
+    script_index = item['locator'].get('script_index')
+    scripts = StructuredScripts(raw).items
+    if (type(script_index) is not int or not 0 <= script_index < len(scripts)
+            or scripts[script_index] != item['claim_span']):
+        raise ValueError('Audit JSON-LD script locator mismatch')
     root = strict_json(item['claim_span'])
     node = root
     for component in item['locator']['node_path']:
+        if type(component) not in (str, int) or (type(component) is int and component < 0):
+            raise ValueError('Audit JSON-LD node locator mismatch')
         node = node[component]
     field = claim['field']
     owner = node.get('hiringOrganization') if field == 'job_posting' else node.get('about') if field == 'public_activity' else node
@@ -124,22 +149,41 @@ def audit_web(subject, claim, item, receipt, raw):
     normalized = [str(v).replace(' ', '').upper().removeprefix('NO').removesuffix('MVA') for v in ids if v is not None]
     if subject not in normalized:
         raise ValueError('Audit website fact belongs to another legal entity')
+    kind = node.get('@type')
+    kinds = kind if isinstance(kind, list) else [kind]
+    cutoff = date.fromisoformat(receipt['retrieved_at'][:10])
     if field == 'business_description':
+        if 'Organization' not in kinds:
+            raise ValueError('Audit description has no organization context')
         expected = node['description']
+        family, key = 'business_products', None
     elif field == 'verified_website':
-        expected = node['url']
-        if urlsplit(expected).hostname != receipt['declared_host']:
-            raise ValueError('Audit website host mismatch')
-        if not urlsplit(expected).path:
-            expected += '/'
+        parts = urlsplit(node['url'])
+        if ('Organization' not in kinds or parts.scheme != 'https' or parts.username is not None
+                or parts.password is not None or parts.port not in (None, 443)
+                or parts.hostname != receipt['declared_host']):
+            raise ValueError('Audit website host or ownership context mismatch')
+        expected = urlunsplit(('https', parts.hostname, parts.path or '/', parts.query, ''))
+        family, key = 'website_owned_profiles', None
     elif field == 'job_posting':
+        if 'JobPosting' not in kinds or date.fromisoformat(node['datePosted'][:10]) > cutoff or (
+                node.get('validThrough') and date.fromisoformat(node['validThrough'][:10]) < cutoff):
+            raise ValueError('Audit job date or context mismatch')
         identity = node['identifier']
         expected = {'title': node['title'], 'date_posted': node['datePosted'],
                     'posting_id': identity.get('value') if isinstance(identity, dict) else identity,
                     'valid_through': node.get('validThrough'), 'source_url': receipt['effective_url']}
+        family, key = 'jobs_dated_activity', expected['posting_id']
     elif field == 'public_activity':
+        if not any(k in ('NewsArticle', 'Article') for k in kinds) or date.fromisoformat(node['datePublished'][:10]) > cutoff:
+            raise ValueError('Audit article date or context mismatch')
+        family, key = 'jobs_dated_activity', receipt['effective_url']
         expected = {'headline': node['headline'], 'published_at': node['datePublished'], 'source_url': receipt['effective_url']}
     else:
         raise ValueError('Audit unsupported company page field')
-    if expected != claim['value'] or claim['scope'] != 'company_owned_structured':
-        raise ValueError('Audit company page value mismatch')
+    encoded = json.dumps([subject, field, 'company_owned_structured', key, None], ensure_ascii=False,
+                         sort_keys=True, separators=(',', ':')).encode()
+    if (expected != claim['value'] or claim['scope'] != 'company_owned_structured'
+            or claim.get('family') != family or claim.get('item_key') != key or claim.get('period') is not None
+            or claim.get('claim_id') != hashlib.sha256(encoded).hexdigest()):
+        raise ValueError('Audit company page value or canonical context mismatch')

@@ -59,3 +59,81 @@ First hosted failure: 100 companies completed but the audit rejected the enlarge
 Checker review reproduced a second counterexample: a forged nested monetary value `True` compared equal to source amount `1` because Python numeric equality treats bool as int. The original guard validated the source amount, but did not validate the candidate/prior amount type. Added explicit nested monetary type checks in acceptance, independent auditing and coverage matching; the regression failed before this fix and passes afterward. Numeric zero and losses remain supported.
 
 A user review identified the remaining registry-activity shortcut. An end-to-end worker/profile counterexample reproduced business_products=covered from registry activity alone. Excluded registered_activity from the shared coverage helper used by publication and planner feedback, retaining the sourced claim and historical metadata. Profile text now labels Registered activity. A positive control verifies that an exact-identifier owned-site description/website still establishes their provisional external families. The revised plan records 17.45+29+12+8=66.45 as a hypothetical cross-entrant combination, 31 recall needed at those other targets, and stable daily execution as necessary for the official scheduled-average ranking. 80+ remains unproven.
+
+## PR3 forecast and corrections, 8 October 2026
+
+Recorded before hosted external-cohort execution. Baseline main is c958cc45.
+Prediction: ordinary HTML can produce additional verified website claims without
+JSON-LD. Explicit subject-named products and dated activity may remain sparse;
+no numeric content-recall gain or official score is forecast. A passing source
+audit cannot substitute for independent opportunity labels or paired comparison.
+
+The user's assessment was checked against source code and current primary
+requirements. Confirmed: BRREG-only website leads, JSON-LD-only extraction, one
+effective network worker, unsynchronized Budget/robots state, and a host spacing
+floor independent of worker count. Reproduced a two-thread request-cap violation
+before replacing check-then-sleep with atomic condition reservations. Added
+pre-read byte reservations after review found that post-read charging could
+otherwise receive unaccounted bytes concurrently. Condition waits release locks;
+network threads never persist, verify, update planner statistics or write the Pipe.
+
+Tightened content success to products/services AND jobs/dated activity; website
+coverage cannot replace the second content family. Exact two-sided McNemar for
+five gains/zero losses is 0.0625. Simultaneous paired gain intervals use exact
+binomial marginal intervals with a union-bound correction; they are deliberately
+conservative. Holm adjusts the two predeclared content-family p-values. A 5 pp
+gain is a mechanism detection floor, not an 80-point forecast.
+
+The full eligible archive and expanded SHA hashes matched the published values.
+Frozen development/validation identities are recorded before hosted experiments.
+The two older research reports and attached PR3 assessment were read in full.
+The public playbook independently supports deterministic crawling, explicit
+entity gates, preserved sources, disjoint cohorts and promotion through evidence.
+
+Local 100/300/1500 synthetic terminal/state checks passed; the largest state was
+94,716,000 bytes. These are not real network or organizer-limit measurements.
+Direct BRREG DNS failed locally and two attempted requests were charged. The
+fetcher was not weakened or routed through a research proxy. Fresh acquisition
+will be measured in hosted CI. The model/API-key request was sent separately;
+no response or search-access credential was present in the connected mailbox.
+
+Brave's published general terms constrain stored results and some AI uses; its
+product page describes additional plan rights. The single adapter therefore
+requires a declared applicable account-rights/rate receipt and budget; searches
+remain transient candidates. No account rights are inferred from marketing copy.
+
+Pending promotion evidence: independently reviewed cross-content labels,
+equal-budget A/B/C paired comparison, actual live scale/chaos receipts, permitted
+discovery activation and organizer execution calibration. Keep PR3 a draft
+while required evidence is missing, even when all CI checks pass.
+
+First hosted external results at 14eaaa30: development and validation each
+returned 100 terminal rows and zero supported external facts. Development had
+five domain candidates/four retrieved pages; validation had two/one. Neither
+cohort established a verified website or content-family gain. Discovery was not
+activated because no applicable account-rights receipt or search key was present.
+This contradicts any claim that the implemented funnel already improves recall.
+
+The runs also exposed two development and one validation identity failures.
+Read-only official-response inspection found a trailing blank activity line in
+all three responses (889191872, 968677748, 990597669). The field checker correctly
+rejects that optional list, but the worker incorrectly required every optional
+entity candidate to pass before accepting any identity. Corrected the boundary:
+exact organisation number/self endpoint and a checked nonblank legal name are
+mandatory; optional rejections remain explicit null claims and named diagnostics.
+No raw activity is normalized into an accepted claim or product coverage.
+Counterexamples preserve the rejection, verify downstream accounts survive, and
+ensure wrong identities/missing names still prevent all optional routes.
+
+An independent-audit counterexample relabeled a structured verified website as
+business_products. Added separate script-locator, typed-context, date, family,
+slot and canonical-ID checks so the audit rejects that coverage inflation.
+The corrected local suite has 141 passing tests; fresh corrected-head hosted
+acquisition is still required. No paired content gain or official score exists.
+
+The refresh trace reproduced another consequence: a rejected entity field used
+only its field name, while the supported prior used a canonical claim ID. This
+produced two active registered_activity claims on refresh. Assign the rejected
+official-entity decision its existing canonical slot after identity validation.
+The regression failed with two claims before the fix, then passed with one stale
+supported claim, the new rejection reason, and no verified product coverage.

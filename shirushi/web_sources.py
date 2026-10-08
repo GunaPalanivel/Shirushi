@@ -1,29 +1,35 @@
 """Conservative company-owned JSON-LD facts; no inferred legal ownership."""
 import re
+import xml.etree.ElementTree as ET
 from datetime import date
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
 
 from .claims import claim_id
-from .contracts import loads
-from .fetch import safe_url
+from .contracts import loads, timestamp
+from .html_sources import catalogue_values, html_values, operator_proof
+from .fetch import safe_url, website_candidate, website_hosts
 from .snapshots import digest
 
 
 class Page(HTMLParser):
     def __init__(self, raw):
         super().__init__(convert_charrefs=True)
-        self.scripts, self.links, self.text = [], [], []
+        self.scripts, self.links, self.text, self.locales = [], [], [], []
         self.current = None
         self.feed(raw.decode('utf-8'))
         self.close()
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        if tag == 'script' and attrs.get('type', '').lower() == 'application/ld+json':
+        if tag == 'script' and (attrs.get('type') or '').lower() == 'application/ld+json':
             self.current = ''
         if tag == 'a' and attrs.get('href'):
             self.links.append(attrs['href'])
+        language = (attrs.get('hreflang') or attrs.get('data-language') or attrs.get('title') or '').lower().replace('_', '-')
+        if (tag in {'a', 'link'} and attrs.get('href')
+                and re.fullmatch(r'(?:no|nb|nn)(?:-no)?', language)):
+            self.locales.append(attrs['href'])
 
     def handle_data(self, data):
         if self.current is not None:
@@ -59,7 +65,8 @@ def nodes(value, path=()):
             yield from nodes(value['@graph'], path + ('@graph',))
 
 
-def page_values(raw, subject, url):
+def page_values(raw, subject, url, cutoff=None):
+    cutoff = cutoff or date.today()
     page = Page(raw)
     # Only explicit machine-readable legal identifiers authorize publication.
     for script_index, text in enumerate(page.scripts):
@@ -86,7 +93,7 @@ def page_values(raw, subject, url):
                 try:
                     posted_date = date.fromisoformat(posted[:10])
                     end = node.get('validThrough')
-                    if posted_date > date.today() or (end and date.fromisoformat(end[:10]) < date.today()):
+                    if posted_date > cutoff or (end and date.fromisoformat(end[:10]) < cutoff):
                         continue
                 except (ValueError, TypeError):
                     continue
@@ -101,7 +108,7 @@ def page_values(raw, subject, url):
             elif any(k in ('NewsArticle', 'Article') for k in kinds) and identified(node.get('about'), subject):
                 title, published = node.get('headline'), node.get('datePublished')
                 try:
-                    if date.fromisoformat(published[:10]) > date.today():
+                    if date.fromisoformat(published[:10]) > cutoff:
                         continue
                 except (ValueError, TypeError):
                     continue
@@ -120,14 +127,38 @@ def check_web(store, subject, sid):
     anchor_raw, anchor_receipt = store.open(receipt['ownership_anchor_snapshot_id'])
     anchor = loads(anchor_raw)
     declared = anchor.get('hjemmeside', '')
-    declared = safe_url(declared if '://' in declared else 'https://' + declared)
+    try:
+        declared = website_candidate(declared)
+    except ValueError:
+        declared = ''
     if (anchor_receipt['source_class'] != 'brreg_entity' or anchor.get('organisasjonsnummer') != subject
-            or anchor_receipt['source_url'] != 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject
-            or urlsplit(declared).hostname != receipt['declared_host']):
+            or anchor_receipt['source_url'] != 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject):
+        raise ValueError('Website identity anchor mismatch')
+    host = urlsplit(declared).hostname
+    registry_host = host is not None and receipt['declared_host'] in website_hosts(host)
+    ownership_sid = receipt.get('operator_snapshot_id', sid)
+    ownership_raw, ownership_receipt = store.open(ownership_sid)
+    legal_name = anchor.get('navn', '')
+    proof = operator_proof(ownership_raw, subject, legal_name)
+    if proof and (ownership_receipt.get('organisation_number') != subject
+                  or ownership_receipt.get('source_class') != 'company_owned'
+                  or ownership_receipt.get('robots_checked') is not True
+                  or ownership_receipt.get('http_status') != 200
+                  or ownership_receipt.get('sha256') != digest(ownership_raw)
+                  or urlsplit(ownership_receipt['effective_url']).hostname != receipt['declared_host']
+                  or ownership_receipt.get('ownership_anchor_snapshot_id') != receipt['ownership_anchor_snapshot_id']):
+        raise ValueError('Website legal operator proof mismatch')
+    seller_path = None
+    if proof and proof['kind'] == 'seller_terms':
+        seller_path = urlsplit(ownership_receipt['effective_url']).path.rsplit('/', 1)[0] + '/'
+        if not urlsplit(receipt['effective_url']).path.startswith(seller_path):
+            raise ValueError('Company page escapes the verified seller locale/path')
+    if not registry_host and not proof:
         raise ValueError('Website discovery is not anchored to this company')
+    cutoff = timestamp(receipt['retrieved_at']).date()
     decisions = []
     scripts = Page(raw).scripts
-    for field, value, family, item, script, path in page_values(raw, subject, receipt['effective_url']):
+    for field, value, family, item, script, path in page_values(raw, subject, receipt['effective_url'], cutoff):
         identity = claim_id(subject, field, 'company_owned_structured', item)
         eid = sid + ':' + identity
         claim = {'claim_id': identity, 'field': field, 'value': value, 'scope': 'company_owned_structured',
@@ -139,14 +170,90 @@ def check_web(store, subject, sid):
                     'claim_span': scripts[script], 'locator': {'script_index': script, 'node_path': list(path)},
                     'extraction_method': 'exact_identifier_jsonld_v1'}
         decisions.append({'field': field, 'family': family, 'accepted': True, 'claim': claim, 'evidence': evidence})
+    if proof:
+        # A verified operator publishes the domain claim; HTML content separately
+        # names its legal subject. Evidence retains the ownership snapshot chain.
+        values = list(html_values(raw, subject, legal_name, receipt['effective_url'], cutoff))
+        if ownership_sid == sid:
+            source = raw.decode('utf-8')
+            values.insert(0, ('verified_website', 'https://' + receipt['declared_host'] + (seller_path or '/'),
+                             'website_owned_profiles', None, source[proof['start']:proof['end']],
+                             {'html_start': proof['start'], 'html_end': proof['end'], 'legal_name': legal_name,
+                              'operator': True}))
+        for field, value, family, item, span, locator in values:
+            identity = claim_id(subject, field, 'company_owned_html', item)
+            eid = sid + ':' + identity
+            claim = {'claim_id': identity, 'field': field, 'value': value, 'scope': 'company_owned_html',
+                     'family': family, 'item_key': item, 'period': None, 'availability': 'available',
+                     'evidence_ids': [eid], 'freshness': 'live_source'}
+            evidence = {'id': eid, 'snapshot_id': sid, 'source_url': receipt['effective_url'],
+                        'source_class': 'company_owned', 'source_origin': receipt['source_origin'],
+                        'retrieved_at': receipt['retrieved_at'], 'content_sha256': digest(raw),
+                        'claim_span': span, 'locator': locator, 'extraction_method': 'explicit_subject_html_v1'}
+            decisions.append({'field': field, 'family': family, 'accepted': True, 'claim': claim, 'evidence': evidence})
+        if seller_path:
+            for field, value, family, item, span, locator in catalogue_values(raw, receipt['effective_url']):
+                if not urlsplit(value['source_url']).path.startswith(seller_path):
+                    continue
+                identity = claim_id(subject, field, 'company_owned_catalogue', item)
+                eid = sid + ':' + identity
+                claim = {'claim_id': identity, 'field': field, 'value': value, 'scope': 'company_owned_catalogue',
+                         'family': family, 'item_key': item, 'period': None, 'availability': 'available', 'evidence_ids': [eid]}
+                evidence = {'id': eid, 'snapshot_id': sid, 'source_url': receipt['effective_url'],
+                            'source_class': 'company_owned', 'source_origin': receipt['source_origin'],
+                            'retrieved_at': receipt['retrieved_at'], 'content_sha256': digest(raw),
+                            'claim_span': span, 'locator': locator, 'extraction_method': 'scoped_catalogue_html_v2'}
+                decisions.append({'field': field, 'family': family, 'accepted': True, 'claim': claim, 'evidence': evidence})
     return decisions
+
+
+def locale_links(raw, url):
+    """Observed Norwegian alternates are leads, never legal ownership proof."""
+    result = []
+    for link in Page(raw).locales:
+        try:
+            candidate = safe_url(urljoin(url, link), {urlsplit(url).hostname})
+        except ValueError:
+            continue
+        if candidate != url and candidate not in result:
+            result.append(candidate)
+    return result
+
+
+def sitemap_links(raw, url, prefix):
+    """Same-host observed XML URLs in the selected locale; never ownership."""
+    if len(raw) > 2097152 or re.search(br'<!\s*(?:DOCTYPE|ENTITY)', raw, re.I):
+        raise ValueError('Unsafe or oversized sitemap')
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        raise ValueError('Invalid sitemap XML') from None
+    kind = root.tag.rsplit('}', 1)[-1]
+    if kind not in ('sitemapindex', 'urlset'):
+        raise ValueError('Unknown sitemap format')
+    result = []
+    for index, element in enumerate(root.iter()):
+        if index >= 15000:
+            break
+        if element.tag.rsplit('}', 1)[-1] != 'loc':
+            continue
+        try:
+            candidate = safe_url(element.text, {urlsplit(url).hostname})
+        except ValueError:
+            continue
+        if urlsplit(candidate).path.startswith(prefix) and candidate not in result:
+            result.append(candidate)
+    if kind == 'urlset':
+        result = [u for u in result if re.search(r'vilk|terms|legal|jurid|imprint|kontakt|contact', urlsplit(u).path, re.I)]
+        result.sort(key=lambda u: not bool(re.search(r'vilk|terms', urlsplit(u).path, re.I)))
+    return kind, result
 
 
 def page_links(raw, url):
     result = []
     for link in Page(raw).links:
         candidate = urljoin(url, link)
-        if not re.search(r'career|job|stilling|ledig|news|nyhet|press|about|om-oss|kontakt', candidate, re.I):
+        if not re.search(r'product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|about|om-oss|kontakt|vilk|terms|legal|jurid|imprint|aktuelt|rekrutter', candidate, re.I):
             continue
         try:
             candidate = safe_url(candidate, {urlsplit(url).hostname})
@@ -154,4 +261,10 @@ def page_links(raw, url):
             continue
         if candidate != url and candidate not in result:
             result.append(candidate)
-    return result
+    # Identity evidence first, then content, never DOM navigation order.
+    def priority(link):
+        path = urlsplit(link).path.lower()
+        return (0 if re.search(r'vilk|terms|legal|jurid|imprint', path) else
+                1 if re.search(r'produkt|product|service|tjenest', path) else
+                2 if re.search(r'job|career|stilling|rekrutter|news|nyhet|aktuelt', path) else 3)
+    return sorted(result, key=priority)

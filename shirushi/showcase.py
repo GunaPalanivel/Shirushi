@@ -20,7 +20,9 @@ def text(value):
 def summary(envelope):
     available = [c for c in envelope['claims'] if c['availability'] == 'available']
     name = next((c['value'] for c in available if c['field'] == 'legal_name'), envelope['organisation_number'])
-    description = next((c for c in available if c['field'] in ('business_description', 'registered_activity')), None)
+    description = next((c for c in available if c['field'] in ('business_description', 'product_service')), None)
+    if description is None:
+        description = next((c for c in available if c['field'] == 'registered_activity'), None)
     lines = [text(name) + ' (' + envelope['organisation_number'] + ').']
     if description:
         label = 'Registered activity: ' if description['field'] == 'registered_activity' else 'Supported description: '
@@ -48,9 +50,14 @@ def profile(envelope):
         rows.append('<tr><th scope="row">' + text(claim['field']) + '</th><td>' + text(claim['value']) +
                     '</td><td>' + text(claim['availability']) + ' ' + text(claim.get('freshness', claim.get('reason', ''))) +
                     '</td><td>' + ''.join(sources) + '</td></tr>')
+    # The audit history remains retained, but withdrawn vacancies are not
+    # republished through the historical-value or changes panel.
+    changes = [c for c in envelope['changes'] if c['field'] != 'job_posting']
+    history = [c for c in envelope.get('history', [])
+               if c['field'] != 'job_posting' and c.get('scope') != 'nav_verified_employer']
     return ('<p>' + summary(envelope) + '</p><table><thead><tr><th>Fact</th><th>Value</th><th>Status</th><th>Sources</th></tr></thead>' +
-            '<tbody>' + ''.join(rows) + '</tbody></table><h2>Changes</h2><pre>' + text(envelope['changes']) +
-            '</pre><h2>Prior supported values</h2><pre>' + text(envelope.get('history', [])) + '</pre>')
+            '<tbody>' + ''.join(rows) + '</tbody></table><h2>Changes</h2><pre>' + text(changes) +
+            '</pre><h2>Prior supported values</h2><pre>' + text(history) + '</pre>')
 
 
 def document(title, body):

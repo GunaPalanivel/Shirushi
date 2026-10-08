@@ -175,7 +175,7 @@ class LiveSourceTests(unittest.TestCase):
         stage, _ = failure_stage({}, {'attempts': [{'source': 'company_owned', 'status': 'checked'}]}, gold)
         self.assertEqual(stage, 'extraction')
 
-    def run_worker(self, request_budget=100, previous=None, declared_website=None):
+    def run_worker(self, request_budget=100, previous=None, declared_website=None, entity_overrides=None):
         config = load(ROOT / 'configs/local-live.json')
         config.update(min_host_interval_seconds=0, request_budget=request_budget,
                       enabled_sources=['brreg_entity', 'brreg_roles', 'brreg_accounts', 'brreg_subunits'])
@@ -200,6 +200,7 @@ class LiveSourceTests(unittest.TestCase):
                         'navn': 'Synthetic company', 'aktivitet': ['Synthetic registered activity']}
                 if declared_website:
                     body['hjemmeside'] = declared_website
+                body.update(entity_overrides or {})
             raw = json.dumps(body).encode()
             fetcher.budget.consume(len(raw))
             return raw, {'source_url': url, 'effective_url': url, 'http_status': 200,
@@ -215,6 +216,44 @@ class LiveSourceTests(unittest.TestCase):
                                     load(ROOT / 'contracts/company-envelope.v1.json'))
         self.assertEqual(errors, [])
         return output, frames
+
+    def test_blank_activity_line_does_not_discard_verified_identity_or_other_routes(self):
+        output, frames = self.run_worker(entity_overrides={'aktivitet': ['Investering i aksjer.', ' ']})
+        for row in output:
+            self.assertEqual(row['run']['terminal_status'], 'completed')
+            self.assertTrue(any(c['field'] == 'legal_name' and c['availability'] == 'available' for c in row['claims']))
+            self.assertTrue(any(c['field'] == 'annual_revenue' and c['availability'] == 'available' for c in row['claims']))
+            activity = next(c for c in row['claims'] if c['field'] == 'registered_activity')
+            self.assertIsNone(activity['value'])
+            self.assertNotEqual(activity['availability'], 'available')
+            self.assertNotIn('business_products', covered_families(row['claims']))
+            evidence = {e['id']: e for e in row['evidence']}
+            for claim in row['claims']:
+                SourceAudit(self.store.root, [row['organisation_number']]).claim(row['organisation_number'], claim, evidence)
+        for frame in [f for f in frames if f[0] == 'result']:
+            attempt = next(a for a in frame[2]['attempts'] if a['source'] == 'brreg_entity')
+            self.assertEqual(attempt['rejected_candidates'],
+                             [{'field': 'registered_activity', 'reason': 'Invalid registered activity'}])
+
+    def test_invalid_identity_or_missing_legal_name_blocks_optional_routes(self):
+        for override in ({'organisasjonsnummer': '999999999'}, {'navn': ''}, {'navn': ' '}):
+            output, frames = self.run_worker(entity_overrides=override)
+            self.assertTrue(all(row['run']['terminal_status'] == 'failed' for row in output))
+            self.assertTrue(all(not any(c['availability'] == 'available' for c in row['claims']) for row in output))
+            self.assertTrue(all([a['source'] for a in f[2]['attempts']] == ['brreg_entity']
+                                for f in frames if f[0] == 'result'))
+
+    def test_optional_rejection_refresh_uses_existing_claim_slot(self):
+        first, _ = self.run_worker()
+        second, _ = self.run_worker(previous={row['organisation_number']: row for row in first},
+                                   entity_overrides={'aktivitet': ['Investering i aksjer.', ' ']})
+        for row in second:
+            activities = [c for c in row['claims'] if c['field'] == 'registered_activity']
+            self.assertEqual(len(activities), 1)
+            self.assertEqual(activities[0]['freshness'], 'stale_after_failed_observation')
+            self.assertEqual(activities[0]['current_attempt_reason'], 'Invalid registered activity')
+            self.assertEqual(row['run']['terminal_status'], 'completed')
+            self.assertNotIn('business_products', covered_families(row['claims']))
 
     def test_registry_website_lead_keeps_owned_page_coverage_unknown(self):
         output, _ = self.run_worker(declared_website='https://example.com/')
@@ -253,6 +292,12 @@ class LiveSourceTests(unittest.TestCase):
         for decision in decisions:
             SourceAudit(self.store.root, [SUBJECT]).claim(SUBJECT, decision['claim'],
                                                        {decision['evidence']['id']: decision['evidence']})
+        website = next(d for d in decisions if d['field'] == 'verified_website')
+        forged = copy.deepcopy(website['claim'])
+        forged['family'] = 'business_products'
+        with self.assertRaises(ValueError):
+            SourceAudit(self.store.root, [SUBJECT]).claim(SUBJECT, forged,
+                {website['evidence']['id']: website['evidence']})
 
     def test_live_budget_failure_preserves_checked_facts_and_all_outputs(self):
         output, frames = self.run_worker(request_budget=3)

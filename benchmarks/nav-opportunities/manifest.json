@@ -1,0 +1,10 @@
+{
+  "baseline_commit": "665e53292b207fd0c36c282fdd00e329f7fcb7e8",
+  "reference_collected_at": "2026-10-08",
+  "universe_sha256": "1c89710e5b01f8617e86d09fbdff4a52f2f8dbbba297e74f7164b5984f5a0384",
+  "scope": "Targeted NAV-positive opportunity pool, not representative universe recall",
+  "independent_human_review": false,
+  "source_examples_inspected_during_development": true,
+  "development_sha256": "bde7b296aca5d88394425b8b95d347548c75b31dc5b7f85ece986489ef1025e6",
+  "validation_sha256": "06a1e8d4fee78a8d661643f48846b595d235a141628f68252b534ba1c1fe89ec"
+}

@@ -1,0 +1,357 @@
+[
+  {
+    "organisation_number": "988440418",
+    "name": "ESPIRA BJØRGENE AS",
+    "posting_id": "84dd974b-94c4-4a71-ba2a-9dab3bb8b69e",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/84dd974b-94c4-4a71-ba2a-9dab3bb8b69e",
+    "employer_org": "988482633",
+    "title": "Er du vår nye dyktige barnehagelærer?",
+    "posted": "2026-10-01T00:00:00+02:00",
+    "expires": "2026-10-16T00:00:00+02:00",
+    "source_sha256": "f77f5fb874110ca359f6edee475c9a964312899091c433b7e490ba69f8077ea8",
+    "bridge_sha256": "09e15db33d88cb5b58ceeb1ae94f26c78045bbf00c18be88eee7cdfba581ace8",
+    "description_sha256": "a645f43834e5fe67c822e97795c40e4c4abef4dc4d8f514ac935d95fa3639ead",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "910132695",
+    "name": "ALTA SKIFERBRUDD SA",
+    "posting_id": "bab29ede-9a30-4f1e-940d-788602f55640",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/bab29ede-9a30-4f1e-940d-788602f55640",
+    "employer_org": "971657294",
+    "title": "Altaskifer søker selger – 12 måneders vikariat",
+    "posted": "2026-10-01T15:24:07+02:00",
+    "expires": "2026-10-22T00:00:00+02:00",
+    "source_sha256": "1c613610297ecc097524b4b11ff7a64a3c60bdadc60f7b52d92531227df07f1c",
+    "bridge_sha256": "e2cc8627d2435650e07c82bedb28ba0ddd48313cf699a1cc6cb314c96b0bf5d6",
+    "description_sha256": "e272ae5c6a5b56d56442a061f9a99950e3b3276c53e6b4416a6864c349f8bee7",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "911697157",
+    "name": "BJØRVIKA BAR OG RESTAURANTUTVIKLING AS",
+    "posting_id": "6650a302-a4fb-410f-8e1c-cb4b5da62721",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/6650a302-a4fb-410f-8e1c-cb4b5da62721",
+    "employer_org": "911716917",
+    "title": "Kokk på Vesper Gastrobar",
+    "posted": "2026-10-01T15:44:36+02:00",
+    "expires": "2026-11-30T00:00:00+01:00",
+    "source_sha256": "1a105fe513e58b49c6b527baf5324d73eae79bfb4850c82a8750b704facf5e2f",
+    "bridge_sha256": "96a46e79f9f3c5444f3525f49752ac9a147690c4080676222f8bba214a4ecb56",
+    "description_sha256": "1829a95aae7d3bf4a44e92745fe1749a6ab1c5ad77c986b23447fce50f3f0f68",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "916326211",
+    "name": "OCAB AS",
+    "posting_id": "7ce550fb-2eca-4112-b750-450ff347dcc5",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/7ce550fb-2eca-4112-b750-450ff347dcc5",
+    "employer_org": "930743747",
+    "title": "Vi søker tømrer i Sørkjosen!",
+    "posted": "2026-10-01T12:50:05+02:00",
+    "expires": "2026-11-01T13:46:39+01:00",
+    "source_sha256": "6bacee1e062f593425a65c33e4b548f070d9bf6f122da40fb4de5e056e76927b",
+    "bridge_sha256": "57fc00bf6b8c9a9f23b060d44a5b22fad10fd25f7d5b3a410f5810c226ef83eb",
+    "description_sha256": "4f2f3909710e0e342af23ee60d97f937aa54d713d339d727ac7410b806b166e0",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "915635520",
+    "name": "VID VITENSKAPELIGE HØGSKOLE AS",
+    "posting_id": "7041c7f5-4576-4834-b98e-0be3d8e14ddd",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/7041c7f5-4576-4834-b98e-0be3d8e14ddd",
+    "employer_org": "916010834",
+    "title": "Seksjonssjef for læringsstøtte og digital utvikling",
+    "posted": "2026-10-01T00:00:00+02:00",
+    "expires": "2026-10-15T00:00:00+02:00",
+    "source_sha256": "97030c33aff640b5a9069ebf8a3aa800a4ed30ed7acfd988e31c5b5d8a91807a",
+    "bridge_sha256": "7095450ebb8f2fc9cd96c3d517fc19377d6c2ecd4b02b0aaf99751ef10c50ac2",
+    "description_sha256": "b2f39887dab66ed382679da26be933aec680436d5f0d5a92b7681ee42540bdaf",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "984040849",
+    "name": "MANTENA AS",
+    "posting_id": "2b390e4b-27f2-4f39-85c5-3b63e5458e06",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/2b390e4b-27f2-4f39-85c5-3b63e5458e06",
+    "employer_org": "974713497",
+    "title": "Sveisekoordinator jernbane",
+    "posted": "2026-09-30T22:00:00+02:00",
+    "expires": "2026-11-01T14:05:25+01:00",
+    "source_sha256": "61f77beee45ddbc1c6b985d783c647a327c9626beae968f25dbc7896132e34e2",
+    "bridge_sha256": "256f1c55bed2951e6dd4eee7939ddaefd6b4d168823517e30eadca528ec74876",
+    "description_sha256": "21965d5d2b1649a41df283a188cab36ad08339daabf2b3ab24bbf7067af4ecc4",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "915602673",
+    "name": "FOLK AS",
+    "posting_id": "d3dd0ca4-fd56-4beb-b9ff-f82d09f3a48e",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/d3dd0ca4-fd56-4beb-b9ff-f82d09f3a48e",
+    "employer_org": "915605176",
+    "title": "Erfaren innkjøper søkes til spennende oppdrag innen oljeindustrien!",
+    "posted": "2026-10-01T00:00:01+02:00",
+    "expires": "2026-11-12T23:59:59+01:00",
+    "source_sha256": "b2a681a179f54ae58fa5041a9d87a766a2fadf3874f9582a14c4b1146546e062",
+    "bridge_sha256": "05423fbd191211d5a7efa5e418a4499a352ec3a74ee5d409bb39702d952638e0",
+    "description_sha256": "51f1efae8a2a6cfb335629c751f3b0ed74e332e29c8b864531fbc2d202f96ccd",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "915304745",
+    "name": "TEAM HEDDA AS",
+    "posting_id": "e8aadb6c-389b-4760-853d-06bde2fc9879",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/e8aadb6c-389b-4760-853d-06bde2fc9879",
+    "employer_org": "815316762",
+    "title": "Brukerstyrt personlig assistent (BPA) - Team Hedda - Bodø",
+    "posted": "2026-10-01T18:35:39+02:00",
+    "expires": "2026-11-01T00:00:00+01:00",
+    "source_sha256": "77cd31ad1b655281379245eb0be567fff7456d2148d613af452a1d422dc285a3",
+    "bridge_sha256": "9ae107743b4b1d92bb6691dc33f844834b3323de01c87694b360586083bf5706",
+    "description_sha256": "6d141dc88bee1cc7a9e94a2a5b4bcd45c7d3df02143288d91b76e8f97a3f00ae",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "927049767",
+    "name": "INNLANDET BILUTLEIE AS",
+    "posting_id": "f334db5a-d40c-4930-8f5e-963caa151045",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/f334db5a-d40c-4930-8f5e-963caa151045",
+    "employer_org": "992531568",
+    "title": "Bilklargjører søkes til Innlandet Bilutleie – 60 % stilling, førerkort klasse B kreves",
+    "posted": "2026-10-01T20:56:44+02:00",
+    "expires": "2026-10-22T00:00:00+02:00",
+    "source_sha256": "a52e1746cc8d312253c732a0776f9ec6e2d3b342a317bbc44608eb98a0a1a8a0",
+    "bridge_sha256": "d276e2bf2b60b07dfd3175a9233f056c86acd6f75aecff4fc883313e95b5942b",
+    "description_sha256": "08aec7585914d65563a9d2d06847f5aefbec0dde2da0a959dbe2c41490f2f60c",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "950990449",
+    "name": "ABERIA OMSORG & ASSISTANSE AS",
+    "posting_id": "d5af44af-9388-4f97-b13e-3ca026e04b86",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/d5af44af-9388-4f97-b13e-3ca026e04b86",
+    "employer_org": "974180545",
+    "title": "BPA søkes i medleverturnus hos mann i Grong!",
+    "posted": "2026-10-01T19:32:52.829808+02:00",
+    "expires": "2026-11-01T00:00:00+01:00",
+    "source_sha256": "2e7ab4236f3effe9b8b187977ad14ee471d05c31eb3f27009042def8999509b7",
+    "bridge_sha256": "b202175e647c3ad890309b48ad868660eb7e562b5f4843759d0d8614077ee864",
+    "description_sha256": "e6aa1982b27d7977ccf3d93eb94cc91d531d08a53e65facc7274e36111ecad9e",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "913711300",
+    "name": "MOELVEN LIMTRE AS",
+    "posting_id": "1b691dc1-0a25-45e7-a2dc-0da850df421e",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/1b691dc1-0a25-45e7-a2dc-0da850df421e",
+    "employer_org": "874297852",
+    "title": "Automatiker ",
+    "posted": "2026-10-02T00:00:00+02:00",
+    "expires": "2026-10-18T00:00:00+02:00",
+    "source_sha256": "ebf3361974509b80f79680f64553aabd2fa66907a5177779f6f784eb041db0cb",
+    "bridge_sha256": "f67579a281199693aae231b17a4e05474c586664169c52ac9b30b6008d32c259",
+    "description_sha256": "62f098933c0d488d6c8d5943f6e590241d90be5d3e8677a77e98ed1fff1664a5",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "836280652",
+    "name": "A-JOB AS",
+    "posting_id": "6880bf03-7e60-4f82-ada8-f83886fc2f60",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/6880bf03-7e60-4f82-ada8-f83886fc2f60",
+    "employer_org": "936316794",
+    "title": "B2B Sales Executive - AI og digitale løsninger",
+    "posted": "2026-09-18T15:19:16+02:00",
+    "expires": "2026-10-16T00:00:00+02:00",
+    "source_sha256": "b0e28532abb640db23950ad9d96c9c9a905fdd5e2e228baa6354fb1c3b3c1fbb",
+    "bridge_sha256": "963886fc2f1c80466f5ffadddd2e1beea20099cb39a0791cd097b3e34dc2f909",
+    "description_sha256": "9e70aef3b49c9d87e649997d14a3decfa27aaee392fe5ab4b3ee780d08650ae4",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "932478102",
+    "name": "SIX ROBOTICS AS",
+    "posting_id": "a21ce6e3-fc7f-48d8-9fe6-0f59cae6d270",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/a21ce6e3-fc7f-48d8-9fe6-0f59cae6d270",
+    "employer_org": "932520311",
+    "title": "Product Manager",
+    "posted": "2026-10-01T00:04:58.3+02:00",
+    "expires": "2027-04-01T00:00:00+02:00",
+    "source_sha256": "82f05616e7731cf5b68fed211e89084f62bc39a4e03dbfec5f8d7c718ba2a2e3",
+    "bridge_sha256": "27b1d59e07b00ae5b933d43a0d3077a5db0229169e55ae80d2811a67ff7a76e8",
+    "description_sha256": "ddeb56a98d49d3ef57764084e45b11240a13c3af39f7023dee0eca922a0dd2ab",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "927309823",
+    "name": "LOGOPEDSENTERET AS",
+    "posting_id": "d8852fb9-70a9-45ec-af2d-977b9431af0f",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/d8852fb9-70a9-45ec-af2d-977b9431af0f",
+    "employer_org": "927343940",
+    "title": "Logoped i faglig fellesskap",
+    "posted": "2026-10-02T06:00:00+02:00",
+    "expires": "2026-10-30T00:00:00+01:00",
+    "source_sha256": "bad89aafe0918c0a2432fc8acddfbc0ebbc6e7941dae0d5a680c1c62b156b8bf",
+    "bridge_sha256": "991e462bef4cd5a5f2ede32e23d87ce0b13811e959d4f536134af6afceb4381f",
+    "description_sha256": "eb0b6be6ffa83bdbf50defb4a7eaec7ce3180dc11f7e25422c6db8685c655a04",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "882692302",
+    "name": "BILTEMA NORGE AS",
+    "posting_id": "4ce1aec9-e888-47d7-b76d-b7785316e1e4",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/4ce1aec9-e888-47d7-b76d-b7785316e1e4",
+    "employer_org": "987419288",
+    "title": "Glad i kundebehandling og mat? Biltema Drammen/Mjøndalen har ledig 50% stilling i caféen!",
+    "posted": "2026-10-02T00:00:01+02:00",
+    "expires": "2026-10-23T23:59:59+02:00",
+    "source_sha256": "7a4210ec982db5f64e68c3b408078968c85d9d451c40683b00c65aa42de68c36",
+    "bridge_sha256": "ec214a3a09d8c597531fd627414cb432610c4e04e7b639ce89f7b75a73abebf6",
+    "description_sha256": "9bcda76652f59fef593e90badf5de02bd73684756e5c5bb3705bd5b8f5b2e8f0",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "983658725",
+    "name": "HELSE VEST RHF",
+    "posting_id": "fc2f5b44-f67e-48ea-9003-1a8e4eb9036c",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/fc2f5b44-f67e-48ea-9003-1a8e4eb9036c",
+    "employer_org": "983768458",
+    "title": "50 % avtaleheimel i gastroenterologi, lokalisert i Lærdal ",
+    "posted": "2026-10-01T00:00:00+02:00",
+    "expires": "2026-10-22T00:00:00+02:00",
+    "source_sha256": "d10e8b42ab2a82d244a71d65b8fb7bda18c67cc2e86da130053454910e3728be",
+    "bridge_sha256": "800dd18cfa15f4ce27f907bdb499d50b7ff3d91d6c8d1f30444d49482b15982a",
+    "description_sha256": "53d44b5e21972e33b0765eef1995a1a4a82557abc38ad1cd2c7b1358d1bba053",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "989748319",
+    "name": "PRIMA ASSISTANSE AS",
+    "posting_id": "d2bcb07f-e437-40d0-834c-f9c9bc8fe514",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/d2bcb07f-e437-40d0-834c-f9c9bc8fe514",
+    "employer_org": "932751569",
+    "title": "Vil du være en stemme for personer med utviklingshemning og bidra til et sterkere BPA-tilbud?",
+    "posted": "2026-10-01T17:50:55.129+02:00",
+    "expires": "2026-10-15T00:00:00+02:00",
+    "source_sha256": "b03b7f1d721a3f740f26e13847735d370b616346a47c77b9c99fe77fbbaa0110",
+    "bridge_sha256": "e235f243e0abe8b55bac1441010597cfab7a88c380f8148b5a6e4b5b734737ca",
+    "description_sha256": "eacc5494c3f1fb49604462ab145df0e9b777029077dea70a400bce06ef3029a1",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "935767997",
+    "name": "TRIO BEMANNING AS",
+    "posting_id": "a99b0576-1d92-4197-9f4f-fee1bce74c8c",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/a99b0576-1d92-4197-9f4f-fee1bce74c8c",
+    "employer_org": "835863212",
+    "title": "Vi trenger fleksible tilkallingsvikarer!",
+    "posted": "2026-10-01T00:00:01+02:00",
+    "expires": "2026-10-31T23:59:59+01:00",
+    "source_sha256": "1c92fdaa68b7c6febc101af2415c784e259e4fb234e74b2d104d0ba6ccb61014",
+    "bridge_sha256": "51a3628665fe06189a83dc982b754391dbc797a45e24d770bd42502e808e3e66",
+    "description_sha256": "7681469fbdcde1c1826911967f22651a1d295495092ca66398c66e74603e9f3d",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "913961471",
+    "name": "MIO BPA AS",
+    "posting_id": "383d26b9-e983-426b-b9bb-84708017a28b",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/383d26b9-e983-426b-b9bb-84708017a28b",
+    "employer_org": "932713160",
+    "title": "Blid jente på 10 år søker etter omsorgsfulle assistenter i en 57% fast stilling",
+    "posted": "2026-10-01T12:55:24+02:00",
+    "expires": "2026-11-01T13:06:37+01:00",
+    "source_sha256": "9b0f31d027118501d941018585d30910104999e63e6d9a2db5d85dccc0ba9c3e",
+    "bridge_sha256": "c0b389a1b3d23968a7d2a9811804efae9ef53a34a6764e47978eebc78d3ef494",
+    "description_sha256": "ee5eab6bcaafdbd13d1a2087a995e5f1b73bd49c2238fa93cfc2578bec886586",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "965699384",
+    "name": "RUSSESERVICE AS",
+    "posting_id": "0792ce92-2d1b-4a8c-90cf-76db2694c06f",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/0792ce92-2d1b-4a8c-90cf-76db2694c06f",
+    "employer_org": "871981582",
+    "title": "Vi søker kontormedarbeider",
+    "posted": "2026-10-01T10:23:43+02:00",
+    "expires": "2026-10-15T00:00:00+02:00",
+    "source_sha256": "618531e7ab2f362ce4beee967ae87ff34b1bec66a29dbd5161a66b22aef69e73",
+    "bridge_sha256": "2a7008b4cf888d43e1f38a4429609275dc65bacdef06c1d6167ab62d4af1aa44",
+    "description_sha256": "b19787ef59e4c2d3267642715bca1b35e3ab846d49f2ae9da37199f169e1690f",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  }
+]

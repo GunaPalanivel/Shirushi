@@ -2,8 +2,8 @@
   "contract_version": "shirushi-local-v1",
   "mode": "local",
   "sample_size": 100,
-  "wall_time_seconds": 900,
-  "request_budget": 700,
+  "wall_time_seconds": 1200,
+  "request_budget": 1000,
   "third_party_cost_usd": 0,
   "workers": 8,
   "per_host_concurrency": 1,
@@ -15,14 +15,12 @@
   "network_enabled": true,
   "enabled_sources": [
     "brreg_entity",
-    "brreg_roles",
-    "brreg_accounts",
-    "brreg_subunits",
+    "nav_jobs",
     "company_owned"
   ],
   "settings_origin": "Local development budget, not organizer-supplied limits",
   "max_total_bytes": 209715200,
   "min_host_interval_seconds": 0.25,
-  "max_pages_per_company": 3,
+  "max_pages_per_company": 6,
   "routing_policy": "fixed"
 }
