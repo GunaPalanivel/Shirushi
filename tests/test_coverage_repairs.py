@@ -78,6 +78,7 @@ class CoverageRepairTests(unittest.TestCase):
     def test_nav_parent_customer_recruitment_and_negation_do_not_cover_business(self):
         for text in ['Parent ASA produces timber.', 'Company is a customer of Vendor AS which produces valves.',
                      'Company does not produce pumps.', 'Painter wanted by Company AS, 60 percent position.',
+                     'Company is a private firm located in Askim.',
                      '<script>Company produces paints.</script>']:
             decisions = self.nav(employer={'orgnr': EMPLOYER, 'description': text})
             self.assertEqual([d['field'] for d in decisions], ['job_posting'])

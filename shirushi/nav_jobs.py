@@ -28,7 +28,7 @@ def business_statement(description, legal_name):
     operation = (r'\b(?:tilbyr|leverer|produserer|utvikler|driver|selger|vedlikeholder|reparerer|baker|'
         r'manufactures|produces|provides|offers|develops|operates|repairs|'
         r'(?:er|is)\s+.{0,100}(?:bemannings\w*|rekrutterings\w*|advokat\w*|barnehage\w*|bakeri\w*|'
-        r'forhandler\w*|butikk\w*|varehus\w*|selskap\w*|firma\w*|byr\u00e5\w*|akt\u00f8r\w*|leverand\u00f8r\w*|company|provider|manufacturer))\b')
+        r'forhandler\w*|butikk\w*|varehus\w*|konsulent\w*|teknologi\w*|sikkerhet\w*|mobilitet\w*|byr\u00e5\w*|akt\u00f8r\w*|leverand\u00f8r\w*|provider|manufacturer))\b')
     for index, sentence in enumerate(re.split(r'(?<=[.!?])\s+', plain)):
         if (10 <= len(sentence) <= 1000 and re.search(r'(?<!\w)' + re.escape(name) + r'(?!\w)'
                 r'(?:\s+(?:AS|ASA|SA|DA|HF|RHF))?\s+' + operation, sentence, re.I)
