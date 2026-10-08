@@ -117,10 +117,11 @@ def run_supervised(job, contract, target=worker):
     context = multiprocessing.get_context('spawn')
     receive, send = context.Pipe(duplex=False)
     process = context.Process(target=target, args=(send, job), daemon=True)
-    slots, priors, reports = {}, {}, {}
+    slots, priors, reports, terminals = {}, {}, {}, set()
     reason = 'Worker exited before completing the batch'
     complete = False
     invalid_previous = False
+    accounting = {'requests': 0, 'response_bytes': 0, 'third_party_cost_usd': 0}
     process.start()
     send.close()
     try:
@@ -147,13 +148,16 @@ def run_supervised(job, contract, target=worker):
             if kind == 'invalid_previous':
                 invalid_previous, reason = True, body
                 break
+            if kind == 'accounting':
+                accounting = body
+                continue
             if subject not in job['subjects']:
                 reason = 'Worker emitted an unrequested identity'
                 break
             if kind == 'prior_verified':
                 priors[subject] = body
-            elif kind == 'result':
-                if subject in slots:
+            elif kind in ('result', 'checkpoint'):
+                if subject in terminals:
                     reason = 'Worker emitted a duplicate terminal result'
                     break
                 errors = validate_envelopes([{'organisation_number': subject}], [body['envelope']], contract)
@@ -161,6 +165,8 @@ def run_supervised(job, contract, target=worker):
                     reason = 'Worker result failed contract: ' + '; '.join(errors)
                     break
                 slots[subject], reports[subject] = body['envelope'], body
+                if kind == 'result':
+                    terminals.add(subject)
             else:
                 reason = 'Unknown worker checkpoint'
                 break
@@ -179,6 +185,9 @@ def run_supervised(job, contract, target=worker):
         exit_code = process.exitcode
         process.close()
     for subject in job['subjects']:
+        if subject in slots and subject not in terminals:
+            slots[subject]['run']['terminal_status'] = 'failed'
+            slots[subject]['errors'].append({'stage': 'supervisor', 'reason': reason})
         if subject not in slots:
             decisions = failure_decisions(priors.get(subject), 'source_failure: ' + reason)
             slots[subject] = envelope(subject, job['run_id'], job['started_at'], decisions,
@@ -188,4 +197,5 @@ def run_supervised(job, contract, target=worker):
     return [slots[s] for s in job['subjects']], [reports[s] for s in job['subjects']], {
         'worker_completed': complete, 'worker_exit_code': exit_code,
         'effective_workers': 1, 'unfinished_reason': None if complete else reason,
+        'operations': accounting,
         'prior_verified_companies': len(priors), 'invalid_previous': invalid_previous}

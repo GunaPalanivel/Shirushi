@@ -59,6 +59,19 @@ class SourceAudit:
                 raise ValueError('Evidence origin differs from its source receipt')
             if item['claim_span'].encode('utf-8') not in raw:
                 raise ValueError('Evidence span is not in source bytes')
+            if receipt['source_class'] in ('brreg_entity', 'brreg_accounts', 'brreg_subunits', 'company_owned'):
+                from .live_support import audit_api, audit_web
+                if receipt['source_class'] == 'company_owned':
+                    anchor_receipt = strict_json(self.read('receipts', receipt['ownership_anchor_snapshot_id']))
+                    anchor = strict_json(self.read('objects', anchor_receipt['content_sha256']))
+                    from urllib.parse import urlsplit
+                    website = anchor.get('hjemmeside', '')
+                    host = urlsplit(website if '://' in website else 'https://' + website).hostname
+                    if (anchor.get('organisasjonsnummer') != subject or host != receipt['declared_host']
+                            or anchor_receipt.get('source_class') != 'brreg_entity'):
+                        raise ValueError('Audit website discovery anchor mismatch')
+                (audit_web if receipt['source_class'] == 'company_owned' else audit_api)(subject, claim, item, receipt, raw)
+                continue
             source = strict_json(raw)
             if claim['field'] in IDENTITY_FIELDS:
                 if (claim.get('scope') != 'frozen_registry' or receipt['snapshot_kind'] != 'registry_jsonl'

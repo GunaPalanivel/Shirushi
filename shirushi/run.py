@@ -1,4 +1,4 @@
-"""Run an offline supplied batch with saved-source evidence and a wall budget."""
+"""Run a supplied batch with retained-source evidence and a wall budget."""
 import argparse
 import json
 import platform
@@ -33,8 +33,12 @@ def write_new(path, value, jsonl=False):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    for flag in ('organisations', 'registry', 'registry-receipt', 'config', 'output', 'report'):
+    for flag in ('organisations', 'config', 'output', 'report'):
         parser.add_argument('--' + flag, type=Path, required=True)
+    parser.add_argument('--registry', type=Path)
+    parser.add_argument('--registry-receipt', type=Path)
+    parser.add_argument('--live', action='store_true')
+    parser.add_argument('--showcase-dir', type=Path)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--previous', type=Path)
     parser.add_argument('--store', type=Path)
@@ -42,7 +46,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     started, clock = utc_now(), time.monotonic()
     output, report_path = args.output.resolve(), args.report.resolve()
-    inputs = [args.organisations, args.registry, args.registry_receipt, args.config]
+    inputs = [args.organisations, args.config]
+    inputs += [p for p in (args.registry, args.registry_receipt) if p]
     inputs += [p for p in (args.previous, args.source_manifest) if p]
     store_path = (args.store or output.parent / 'snapshots').resolve()
     forbidden = {p.resolve() for p in inputs}
@@ -68,10 +73,25 @@ def main(argv=None):
             raise ValueError('; '.join(errors))
         if len(subjects) > config['sample_size']:
             raise ValueError('Input batch exceeds declared sample_size')
-        if (config['mode'] != 'local' or config['network_enabled']
+        if args.live:
+            if (config['mode'] != 'local' or not config['network_enabled']
+                    or 'brreg_entity' not in config['enabled_sources']
+                    or set(config['enabled_sources']) - {'brreg_entity', 'brreg_roles', 'brreg_accounts', 'brreg_subunits', 'company_owned'}):
+                raise ValueError('Live runner requires explicitly enabled local source routes; official wire adapter remains unconfirmed')
+            if args.registry or args.registry_receipt or args.source_manifest:
+                raise ValueError('Live and offline acquisition inputs cannot be mixed')
+            for setting in ('max_total_bytes', 'min_host_interval_seconds', 'max_pages_per_company', 'routing_policy'):
+                if setting not in config:
+                    raise ValueError('Live setting missing: ' + setting)
+        elif (config['mode'] != 'local' or config['network_enabled']
                 or 'frozen_registry' not in config['enabled_sources']
                 or set(config['enabled_sources']) - {'frozen_registry', 'brreg_roles_snapshot'}):
             raise ValueError('Only local offline registry and saved roles sources are implemented')
+        elif not args.registry or not args.registry_receipt:
+            raise ValueError('Offline runner requires registry and registry-receipt')
+        if args.showcase_dir and (args.showcase_dir.exists() or args.showcase_dir.resolve() in forbidden
+                                  or args.showcase_dir.resolve() in output.parents or args.showcase_dir.resolve() in report_path.parents):
+            raise ValueError('Showcase directory must be new and distinct from inputs/output/report')
         sources = []
         if args.source_manifest:
             sources = load(args.source_manifest)
@@ -102,14 +122,20 @@ def main(argv=None):
         job = {'subjects': subjects, 'registry': args.registry, 'registry_receipt': args.registry_receipt,
                'store': store_path, 'previous': previous, 'sources': sources, 'source_manifest': args.source_manifest,
                'max_response_bytes': config['max_response_bytes'], 'enabled_sources': config['enabled_sources'],
-               'deadline': deadline, 'started_at': started, 'run_id': args.run_id}
+               'deadline': deadline, 'started_at': started, 'run_id': args.run_id, 'config': config}
+        if args.live:
+            report['scope'] = 'live_local_batch'
     except (ValueError, OSError, KeyError, TypeError) as exc:
         report.update(status='rejected_input', completed_at=utc_now(), errors=[str(exc)])
         write_new(report_path, report)
         print(json.dumps({'status': report['status'], 'errors': report['errors']}))
         return 2
     try:
-        envelopes, companies, supervision = run_supervised(job, contract)
+        if args.live:
+            from .live import worker as live_worker
+            envelopes, companies, supervision = run_supervised(job, contract, target=live_worker)
+        else:
+            envelopes, companies, supervision = run_supervised(job, contract)
     except Exception as exc:
         reason = 'Supervisor failure: ' + type(exc).__name__ + ': ' + str(exc)
         envelopes = [envelope(s, args.run_id, started, failure_decisions(None, reason), error=reason) for s in subjects]
@@ -130,16 +156,20 @@ def main(argv=None):
                   decisions=[d for c in companies for d in c['decisions']],
                   accepted=sum(d['accepted'] for c in companies for d in c['decisions']),
                   changes=sum(len(e['changes']) for e in envelopes), errors=[e for c in envelopes for e in c['errors']],
-                  operations={'requests': 0, 'runtime_ms': int((time.monotonic() - clock) * 1000), 'third_party_cost_usd': 0},
-                  acquisition_accounting='Saved sources are external caches; acquisition requests and times are declared in their receipts.',
+                  operations=dict(supervision.get('operations', {}), runtime_ms=int((time.monotonic() - clock) * 1000)),
+                  acquisition_accounting='All live attempts, redirects, retries and robots charged.' if args.live else
+                  'Saved sources are external caches; acquisition requests and times are declared in their receipts.',
                   artifact_complete=True)
     try:
+        if args.showcase_dir:
+            from .showcase import render
+            render(envelopes, args.showcase_dir)
         write_new(output, envelopes, jsonl=True)
         report['output_sha256'] = digest(output.read_bytes())
         # Report is the completion marker; an output without its matching report
         # is not an accepted artifact pair after interruption.
         write_new(report_path, report)
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         print(json.dumps({'status': 'artifact_publication_failed', 'error': str(exc)}))
         return 1
     print(json.dumps({'status': report['status'], 'companies': len(envelopes), 'accepted': report['accepted'],

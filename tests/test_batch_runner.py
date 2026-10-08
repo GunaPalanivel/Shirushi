@@ -33,6 +33,14 @@ def blocked_worker(connection, job):
     time.sleep(30)
 
 
+def checkpoint_then_block_worker(connection, job):
+    subject = job['subjects'][0]
+    result = envelope(subject, job['run_id'], job['started_at'], [], error=None)
+    connection.send(('checkpoint', subject, {'envelope': result, 'decisions': [], 'attempts': []}))
+    connection.send(('accounting', None, {'requests': 3, 'response_bytes': 42, 'third_party_cost_usd': 0}))
+    time.sleep(30)
+
+
 def reordered_worker(connection, job):
     for subject in reversed(job['subjects']):
         result = envelope(subject, job['run_id'], job['started_at'], failure_decisions(None, 'synthetic_failure'),
@@ -103,6 +111,16 @@ class BatchRunnerTests(unittest.TestCase):
         self.assertEqual([next(c['value'] for c in e['claims'] if c['field'] == 'registered_employees') for e in results], list(range(20)))
         self.assertEqual(load(report)['accepted'], 160)
         self.assertEqual(load(report)['output_sha256'], hashlib.sha256(output.read_bytes()).hexdigest())
+
+    def test_stalled_checkpoint_preserves_accounting_and_1500_terminal_slots(self):
+        self.subjects = [str(123450000 + i) for i in range(1500)]
+        job = self.job(seconds=1)
+        results, reports, supervision = run_supervised(job, self.contract, checkpoint_then_block_worker)
+        self.assertEqual([r['organisation_number'] for r in results], self.subjects)
+        self.assertEqual(len(reports), 1500)
+        self.assertTrue(all(r['run']['terminal_status'] == 'failed' for r in results))
+        self.assertEqual(supervision['operations']['requests'], 3)
+        self.assertEqual(supervision['operations']['response_bytes'], 42)
 
     def test_batch_replay_no_change_or_history_growth(self):
         _, first, _ = self.cli('first')
