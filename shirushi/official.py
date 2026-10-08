@@ -15,8 +15,7 @@ from .contracts import ROOT, load, loads, timestamp, validate_inputs
 from .registry import check_receipt
 from .run import MAX_INPUT_BYTES, MAX_STATE_BYTES, read_envelopes, write_new
 from .snapshots import digest
-from shirushi_eval.wire import internal_records, validate_public_contract
-from shirushi_eval.support import SourceAudit
+from shirushi_eval.wire import validate_public_contract
 
 SHARD_SIZE = 100
 LIMITS = {'wall_time_seconds': 2700, 'request_budget': 2000,
@@ -32,7 +31,7 @@ def read_inputs(path):
     text = raw.decode('utf-8')
     if Path(path).suffix == '.json':
         body = loads(text)
-        records = body if isinstance(body, list) else body.get('organisation_numbers')
+        records = body if isinstance(body, list) else body.get('organisation_numbers') if isinstance(body, dict) else None
     elif Path(path).suffix == '.jsonl':
         records = [loads(line) for line in text.splitlines() if line.strip()]
     else:
@@ -57,12 +56,15 @@ def resource_guard():
     available = sorted(os.sched_getaffinity(0))
     os.sched_setaffinity(0, available[:LIMITS['cpu_limit']])
     # Stay below either decimal or binary interpretation of the supplied cap.
-    desired = 15_000_000_000
+    desired = 8_000_000_000
     _, hard = resource.getrlimit(resource.RLIMIT_AS)
     cap = desired if hard == resource.RLIM_INFINITY else min(desired, hard)
-    resource.setrlimit(resource.RLIMIT_AS, (cap, cap))
-    return {'cpu_affinity': sorted(os.sched_getaffinity(0)), 'address_space_limit_bytes': cap,
-            'snapshot_store_limit_bytes': 9_000_000_000,
+    supervisor_cap = min(2_000_000_000, cap)
+    resource.setrlimit(resource.RLIMIT_AS, (supervisor_cap, cap))
+    return {'cpu_affinity': sorted(os.sched_getaffinity(0)), 'supervisor_address_space_limit_bytes': supervisor_cap,
+            'worker_address_space_limit_bytes': cap,
+            'combined_process_address_space_ceiling_bytes': 3 * supervisor_cap + cap,
+            'snapshot_store_limit_bytes': 8_000_000_000,
             'enforcement': 'Linux affinity, inherited RLIMIT_AS, bounded snapshot writes and supervised shard deadline'}
 
 
@@ -92,7 +94,11 @@ def main(argv=None):
             raise ValueError('Supplied registry is missing')
         prior = read_envelopes(args.previous) if args.previous else None
         if prior is not None:
-            errors = validate_public_contract(subjects, prior)
+            prior_subjects = [e.get('organisation_number') if isinstance(e, dict) else None for e in prior]
+            errors = validate_public_contract(prior_subjects, prior)
+            if (not prior_subjects or len(set(prior_subjects)) != len(prior_subjects)
+                    or any(s not in subjects for s in prior_subjects)):
+                errors.append('Previous identities must be unique members of the supplied batch')
             if errors:
                 raise ValueError('Previous public output: ' + '; '.join(errors))
         paths = [args.output.resolve(), args.report.resolve(), args.work_dir.resolve()]
@@ -108,6 +114,10 @@ def main(argv=None):
         store = (args.store or args.work_dir / 'snapshots').resolve()
         if store in inputs + paths or (store.exists() and not store.is_dir()) or any(store in p.parents for p in paths[:2] + inputs):
             raise ValueError('Snapshot store cannot replace or contain input/output files')
+        if args.showcase_dir:
+            site = args.showcase_dir.resolve()
+            if store == site or store in site.parents or site in store.parents:
+                raise ValueError('Snapshot store and public showcase cannot contain one another')
         guard = resource_guard()
     except (ValueError, OSError, KeyError, TypeError) as exc:
         print(json.dumps({'status': 'rejected_input', 'error': str(exc)}))
@@ -115,7 +125,8 @@ def main(argv=None):
     args.work_dir.mkdir(parents=True)
     quota_roots = [str(p.resolve()) for p in (args.work_dir, args.output, args.report, args.showcase_dir) if p]
     os.environ.update(SHIRUSHI_ARTIFACT_ROOTS=json.dumps(quota_roots), SHIRUSHI_QUOTA_STORE=str(store),
-                      SHIRUSHI_STORE_BYTE_LIMIT='9000000000')
+                      SHIRUSHI_STORE_BYTE_LIMIT=str(guard['snapshot_store_limit_bytes']),
+                      SHIRUSHI_WORKER_ADDRESS_SPACE_LIMIT=str(guard['worker_address_space_limit_bytes']))
     environment = dict(os.environ)
     prior_by_subject = {e['organisation_number']: e for e in prior or []}
     aggregate, reports = [], []
@@ -140,8 +151,10 @@ def main(argv=None):
         if not args.offline:
             command.append('--live')
         if args.previous:
-            write_new(folder / 'previous.jsonl', [prior_by_subject[r['organisation_number']] for r in batch], jsonl=True)
-            command += ['--previous', str(folder / 'previous.jsonl')]
+            old = [prior_by_subject[r['organisation_number']] for r in batch if r['organisation_number'] in prior_by_subject]
+            if old:
+                write_new(folder / 'previous.jsonl', old, jsonl=True)
+                command += ['--previous', str(folder / 'previous.jsonl'), '--allow-previous-subset']
         if args.discovery_access_receipt:
             command += ['--discovery-access-receipt', str(args.discovery_access_receipt.resolve())]
         # No aggregate wall cap is invented for an expanded batch. Each shard
@@ -156,11 +169,15 @@ def main(argv=None):
             errors = validate_public_contract([r['organisation_number'] for r in batch], rows)
             if errors:
                 raise ValueError('; '.join(errors))
-            audit = SourceAudit(store, [r['organisation_number'] for r in batch])
-            for row in internal_records(rows):
-                evidence = {e['id']: e for e in row['evidence']}
-                for claim in row['claims'] + row.get('history', []):
-                    audit.claim(row['organisation_number'], claim, evidence)
+            remaining = LIMITS['wall_time_seconds'] - (time.monotonic() - shard_clock)
+            if remaining <= 0:
+                raise ValueError('Shard deadline reached before independent audit')
+            audit = subprocess.run([sys.executable, '-X', 'dev', '-W', 'error',
+                '-m', 'shirushi_eval.audit_public', '--input', str(folder / 'input.jsonl'),
+                '--output', str(folder / 'envelopes.jsonl'), '--store', str(store)],
+                cwd=ROOT, env=environment, check=False, timeout=remaining)
+            if audit.returncode:
+                raise ValueError('Independent public source audit failed')
             ops = report['operations']
             if (ops.get('requests', 0) > LIMITS['request_budget'] or ops.get('third_party_cost_usd', 0) > 10
                     or ops['runtime_ms'] > 2_700_000 or time.monotonic() - shard_clock > 2700):
@@ -201,6 +218,10 @@ def main(argv=None):
         'runtime_ms': int((time.monotonic() - clock) * 1000), 'official_score': None,
         'scope': 'offline_public_contract_exercise' if args.offline else 'live_published_contract_candidate',
         'private_harness_confirmed': False}
+    import resource
+    report['observed_memory'] = {'launcher_peak_rss_bytes': resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024,
+        'child_peak_rss_bytes': resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss * 1024,
+        'scope': 'Separate process high-water RSS, not simultaneous summed memory'}
     write_new(args.report, report)
     print(json.dumps({'status': report['status'], 'input_count': len(subjects), 'output_count': len(aggregate),
                       'shards': len(reports), 'official_score': None}))

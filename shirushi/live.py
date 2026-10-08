@@ -245,6 +245,8 @@ def verify_previous(store, prior, subject, checker=None):
 
 
 def worker(connection, job):
+    from .resources import worker_memory_limit
+    worker_memory_limit()
     store = SnapshotStore(job['store'])
     events = SimpleQueue()
     budget = Budget(job['config'], job['deadline'], events.put)

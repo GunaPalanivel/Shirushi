@@ -80,7 +80,10 @@ def find_rows(data, receipt, subjects, compressed, deadline=None):
                         raise ValueError('Duplicate requested subject in registry')
                     # Retain every parsed column, not a maker projection. The
                     # checker reselects it from the complete original archive.
-                    found[subject] = (canonical(row), index)
+                    encoded = canonical(row)
+                    if len(encoded) > MAX_ROW_BYTES:
+                        raise ValueError('Selected CSV record exceeds declared row bound')
+                    found[subject] = (encoded, index)
         if hasher.hexdigest() != receipt['uncompressed_sha256']:
             raise ValueError('Expanded registry hash mismatch')
         return found

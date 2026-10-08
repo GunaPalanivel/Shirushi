@@ -21,6 +21,7 @@ a{color:#1247a0} :focus-visible{outline:3px solid #1247a0;outline-offset:3px} in
 table{width:100%;border-collapse:collapse} td,th{text-align:left;border-bottom:1px solid #ddd;padding:.6rem;vertical-align:top;overflow-wrap:anywhere}
 pre{white-space:pre-wrap;overflow-wrap:anywhere}details{margin:.4rem 0} .compare{display:flex;gap:1rem;flex-wrap:wrap}.compare section{flex:1;min-width:0;width:100%}
 button{font:inherit;padding:.6rem;margin:.4rem 0} .context{display:block;font-size:.9rem;color:#42556b} .summary{line-height:1.7}
+[hidden]{display:none!important}
 @media(max-width:600px){table,tbody,tr,td,th{display:block}thead{display:none}td,th{padding:.3rem}tr{margin-bottom:1rem;border-bottom:1px solid #bbb}.compare{display:block}}'''
 
 
@@ -49,7 +50,7 @@ def display_value(claim):
     if claim['availability'] != 'available':
         return 'Unknown' if claim['availability'] != 'not_applicable' else 'Not applicable'
     if isinstance(value, dict) and 'amount' in value:
-        return str(value['amount']) + ' ' + str(value.get('currency', '')) + ' (' + str(value.get('units', 'source units')) + ')'
+        return str(value['amount']) + ' ' + str(value.get('currency', '')) + ' (raw source units)'
     if isinstance(value, dict) and 'person_name' in value:
         return str(value['person_name']) + ' / ' + str(value.get('role_code', ''))
     if isinstance(value, dict) and 'title' in value:
@@ -61,7 +62,7 @@ def context(claim):
     values = []
     if claim.get('period'):
         period = claim['period']
-        values.append('Period: ' + (json.dumps(period, sort_keys=True) if not isinstance(period, str) else period))
+        values.append('Period: ' + (period['fraDato'] + ' to ' + period['tilDato'] if isinstance(period, dict) and {'fraDato', 'tilDato'} <= period.keys() else str(period)))
     if claim.get('scope'):
         values.append('Scope: ' + claim['scope'].replace('_', ' '))
     if claim.get('freshness'):
@@ -88,7 +89,7 @@ def summary(envelope, prefix=''):
         lines.append('Registered employees: ' + supported(employees) + '.')
     revenue = [c for c in available if c['field'] == 'annual_revenue' and c.get('scope') == 'entity_accounts']
     if revenue:
-        latest = max(revenue, key=lambda c: json.dumps(c.get('period'), sort_keys=True))
+        latest = max(revenue, key=lambda c: (c['period']['tilDato'], c['period']['fraDato']))
         lines.append('Latest supported entity revenue: ' + supported(latest) + ' (' + text(context(latest)) + ').')
     changed = sum(c.get('kind') == 'value_changed' for c in envelope['changes'])
     lines.append(str(changed) + ' supported value changes in this run.')
@@ -100,29 +101,52 @@ def summary(envelope, prefix=''):
 
 def profile(envelope):
     evidence = {e['id']: e for e in envelope['evidence']}
-    rows = []
-    for claim in envelope['claims']:
+    displayed = set()
+
+    def sources_for(claim):
         sources = []
         for ref in claim['evidence_ids']:
             item = evidence[ref]
             if urlsplit(item['source_url']).scheme != 'https':
                 raise ValueError('Profile source link must use HTTPS')
+            if ref in displayed:
+                sources.append('<a href="#' + anchor(ref) + '">Evidence</a>')
+                continue
+            displayed.add(ref)
             sources.append('<details id="' + anchor(ref) + '"><summary>Evidence</summary><a rel="noopener noreferrer" href="' +
                            escape(item['source_url'], quote=True) + '">Original source</a><p>Retrieved: ' +
                            text(item['retrieved_at']) + '</p><p>SHA-256: ' + text(item['content_sha256']) +
                            '</p><pre>' + text(item['claim_span'][:2000]) + '</pre></details>')
-        rows.append('<tr><th scope="row">' + text(label(claim['field'])) + '</th><td>' + text(display_value(claim)) +
-                    '<span class="context">' + text(context(claim)) + '</span>' +
-                    '</td><td>' + text(claim['availability']) + ' ' + text(claim.get('freshness', claim.get('reason', ''))) +
-                    '</td><td>' + ''.join(sources) + '</td></tr>')
-    # The audit history remains retained, but withdrawn vacancies are not
-    # republished through the historical-value or changes panel.
+        return ''.join(sources)
+
+    def fact_row(claim):
+        status = claim['availability'].replace('_', ' ')
+        reason = claim.get('reason', '')
+        return ('<tr><th scope="row">' + text(label(claim['field'])) + '</th><td>' + text(display_value(claim)) +
+                '<span class="context">' + text(context(claim)) + '</span></td><td>' + text(status) + ' ' +
+                text(reason) + '</td><td>' + sources_for(claim) + '</td></tr>')
+
+    rows = ''.join(fact_row(claim) for claim in envelope['claims'])
+    # Retain the private audit history without republishing withdrawn vacancies.
     changes = [c for c in envelope['changes'] if c['field'] != 'job_posting']
     history = [c for c in envelope.get('history', [])
                if c['field'] != 'job_posting' and c.get('scope') != 'nav_verified_employer']
+    change_rows = []
+    for change in changes:
+        cells = []
+        for key in ('old_value', 'new_value'):
+            value = change[key]
+            rendered = display_value({'value': value, 'availability': 'available' if value is not None else 'not_available'})
+            refs = change['old_evidence_ids' if key == 'old_value' else 'new_evidence_ids']
+            link = '<a href="#' + anchor(refs[0]) + '">' + text(rendered) + '</a>' if refs else text(rendered)
+            cells.append('<td>' + link + '</td>')
+        change_rows.append('<tr><th scope="row">' + text(label(change['field'])) + '</th>' + ''.join(cells) +
+                           '<td>' + text(change['observed_at']) + '</td></tr>')
+    change_panel = ('<table><thead><tr><th>Fact</th><th>Previous</th><th>Current</th><th>Observed</th></tr></thead><tbody>' +
+                    ''.join(change_rows) + '</tbody></table>') if changes else '<p>No supported value changes in this run.</p>'
+    prior_panel = ('<table><tbody>' + ''.join(fact_row(c) for c in history) + '</tbody></table>') if history else '<p>No prior supported values.</p>'
     return ('<p class="summary">' + summary(envelope) + '</p><table><thead><tr><th>Fact</th><th>Value</th><th>Status</th><th>Sources</th></tr></thead>' +
-            '<tbody>' + ''.join(rows) + '</tbody></table><h2>Changes</h2><pre>' + text(changes) +
-            '</pre><h2>Prior supported values</h2><pre>' + text(history) + '</pre>')
+            '<tbody>' + rows + '</tbody></table><h2>Changes</h2>' + change_panel + '<h2>Prior supported values</h2>' + prior_panel)
 
 
 def document(title, body):

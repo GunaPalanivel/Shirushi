@@ -59,7 +59,7 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12.12'
-      - name: Cold launch, resource guard, 100/300/1100 membership and replay
+      - name: Cold launch, resource guard, 100/300/1100/1500 membership and replay
         run: python -X dev -W error tools/validate_official_boundary.py --output-dir out/public-boundary
       - name: Render 100 supported synthetic profiles
         run: python -c "from pathlib import Path; from shirushi.run import read_envelopes; from shirushi.showcase import render; render(read_envelopes('out/public-boundary/100/output.jsonl'), Path('out/public-preview'))"

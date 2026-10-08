@@ -2,13 +2,14 @@
 import argparse
 import json
 import platform
+import math
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .artifacts import publish_new
 from .batch import envelope, failure_decisions, run_supervised
-from .contracts import ROOT, load, loads, validate_config, validate_envelopes, validate_inputs
+from .contracts import ROOT, load, loads, timestamp, validate_config, validate_envelopes, validate_inputs
 from .snapshots import digest
 
 MAX_INPUT_BYTES = 2 * 1024 * 1024
@@ -50,6 +51,7 @@ def main(argv=None):
     parser.add_argument('--showcase-dir', type=Path)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--previous', type=Path)
+    parser.add_argument('--allow-previous-subset', action='store_true')
     parser.add_argument('--store', type=Path)
     parser.add_argument('--source-manifest', type=Path)
     parser.add_argument('--cutoff', help='Evaluator-supplied RFC 3339 evidence cutoff')
@@ -73,7 +75,6 @@ def main(argv=None):
         if not args.run_id.strip():
             raise ValueError('run-id must be nonempty')
         if args.cutoff:
-            from .contracts import timestamp
             if timestamp(args.cutoff) > timestamp(started):
                 raise ValueError('Evidence cutoff cannot be in the future')
             report['cutoff'] = args.cutoff
@@ -143,7 +144,15 @@ def main(argv=None):
             if args.output_contract == 'builderr-minimal-v1':
                 from .wire import convert
                 prior = convert(prior, external=False)
-            errors = validate_envelopes(records, prior, contract)
+            previous_records = records
+            if args.allow_previous_subset:
+                if args.output_contract != 'builderr-minimal-v1':
+                    raise ValueError('Subset refresh requires the published-contract adapter')
+                previous_records = [{'organisation_number': e.get('organisation_number') if isinstance(e, dict) else None}
+                                    for e in prior]
+                if any(r['organisation_number'] not in subjects for r in previous_records):
+                    raise ValueError('Previous identities must be a subset of supplied membership')
+            errors = validate_envelopes(previous_records, prior, contract)
             if errors:
                 raise ValueError('Previous envelope invalid: ' + '; '.join(errors))
             previous = {e['organisation_number']: e for e in prior}
@@ -186,6 +195,8 @@ def main(argv=None):
         write_new(report_path, report)
         return 1
     failed = sum(e['run']['terminal_status'] == 'failed' for e in envelopes)
+    completion_ms = sorted(max(0, int((timestamp(e['run']['completed_at']) - timestamp(started)).total_seconds() * 1000))
+                           for e in envelopes)
     report.update(status='failed' if failed else 'completed', completed_at=utc_now(), companies=companies,
                   supervision=supervision, input_count=len(subjects), output_count=len(envelopes), failed_companies=failed,
                   decisions=[d for c in companies for d in c['decisions']],
@@ -195,6 +206,8 @@ def main(argv=None):
                   acquisition_accounting='All live attempts, redirects, retries and robots charged.' if args.live else
                   'Saved sources are external caches; acquisition requests and times are declared in their receipts.',
                   artifact_complete=True)
+    report['operations'].update(p50_company_completion_ms=completion_ms[math.ceil(len(completion_ms) * .5) - 1],
+                                p95_company_completion_ms=completion_ms[math.ceil(len(completion_ms) * .95) - 1])
     try:
         if args.showcase_dir:
             from .showcase import render

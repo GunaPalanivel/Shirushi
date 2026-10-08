@@ -65,6 +65,8 @@ def registry_source(audit, receipt, raw, subject):
                             raise ValueError('Duplicate audit registry subject')
                         encoded = json.dumps(row, ensure_ascii=False, sort_keys=True,
                                              separators=(',', ':'), allow_nan=False).encode()
+                        if len(encoded) > 1024 * 1024:
+                            raise ValueError('Audit selected CSV row bound exceeded')
                         rows[org] = (encoded, index)
             else:
                 for index, line in enumerate(lines(), 1):

@@ -99,6 +99,7 @@ def main():
         'entity_requests': sum(a['requests'] for a in attempts if a['source'] == 'brreg_entity'),
         'company_coverage_by_family': {f: len(s) for f, s in sorted(families.items())}, 'claims_by_field': fields,
         'resource_guard': report['resource_guard'], 'source_audit': 'PASS' if report['artifact_complete'] else 'FAIL',
+        'observed_memory': report.get('observed_memory'),
         'snapshot_preparation': preparation, 'cutoff': cutoff,
         'registry_sha256': report['registry_sha256'], 'registry_receipt_sha256': report['registry_receipt_sha256'],
         'input_sha256': report['input_sha256'], 'output_sha256': report['output_sha256'],

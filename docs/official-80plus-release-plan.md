@@ -19,7 +19,10 @@ Each official family uses `0.7 * company recall + 0.3 * fact recall`.
 For example, 80% company recall and 40% fact recall produce 68% coverage in
 one family. The official weighted aggregate must reach 68% for 34 recall points.
 Family weights/equivalences are not specified in the public contract, so our
-six-family macro average cannot be called an official score. Scheduled-batch
+six-family macro average cannot be called an official score. With 28 evidence,
+12 synthesis and 8 UX, exceeding 80 needs more than 32 recall points; the
+34-point goal provides a margin. Even perfect other components need more than
+30 recall points. Scheduled-batch
 mean determines ranking; one favorable test does not determine first place.
 
 ## Confirmed execution envelope
@@ -35,9 +38,13 @@ mean determines ranking; one favorable test does not determine first place.
 | Revisions | Initial plus four revisions | Use revisions for measured gains or official feedback |
 | Final revision | Before end of 18 October UTC | Internal freeze on 17 October; submit before the deadline |
 
-The shared official collection can span many shards. The 1,500-company synthetic
-state test remains a stress test, while the operational acceptance unit is a
-100-company shard. No undocumented shard orchestration is inferred.
+The shared official collection can span many shards. PR4's published-contract
+candidate partitions supplied input in order into at most 100-company shards,
+each with a fresh ledger. Its sequential launcher does not assume an aggregate
+wall allowance or shared concurrent storage. The harness can invoke separate
+shards with separate stores. The board reviewed on 5 October describes a locked
+1,500-company set, whereas the prose uses 1,000/1,100 examples; do not hard-code
+either full-batch size. Synthetic scale tests are not live recall measurements.
 
 Proposed initial request allocation for the combined pipeline, including all
 attempts rather than only successful source fetches:
@@ -137,11 +144,27 @@ diagnostics and promote only on actual company gains under the shard budget.
 
 ## Ordered work after PR3
 
+PR4 now includes frozen CSV/JSONL anchors, the published `official_website`
+alias with lossless refresh, cutoff handling, bounded shard execution, Linux
+CPU/address-space and disk-write guards, evidence-linked summaries, factual
+comparison and browser acceptance. Registered workplace names and frozen email
+domains are additional bounded acquisition leads; neither changes publication
+identity requirements. See `pr4-evaluator-command.md`,
+`pr4-winning-mechanisms.md` and `pr4-experiment-ledger.md`.
+
+The remaining path to 80 is included in PR4's promotion criteria, not deferred
+as an unspecified promise: establish independent opportunity labels, measure
+new-company gains against the fixed control, close the largest missing family,
+confirm the private wire variant, and obtain an official component breakdown.
+The public starter's nested profile envelope conflicts with its minimal claims
+example; the implemented adapter follows the latter without inventing harness
+confirmation. No local run can establish an official 80+ result.
+
 | Order / intended window | Work | Why | Acceptance |
 | --- | --- | --- | --- |
 | PR4, 9-10 October | Integrate public output example and supplied frozen registry; shard budget config and clean evaluator command | Correct research must be scorable and reproducible | Read starter field semantics including `official_website` versus internal `verified_website`; exact input membership; cold 100-company run under confirmed limits; forced source outage and refresh pass |
 | PR4, alongside boundary | Review existing static synthesis and `/signalpost` showcase | Existing UI is a foundation, but the 20 product points require behavior validation | Direct evidence links for summary conclusions, useful changes/unknowns, desktop/mobile search/compare/source checks, no implementation/status copy in user flows |
-| PR5, 10-13 October | Close measured per-family losses with source-specific adapters | Website and NAV gains alone do not cover broad companies | Freeze independent opportunity labels before tuning; equal-budget new-company gains in missing families with zero material wrong-company publications |
+| PR4 promotion experiments, 10-13 October; later revision only if needed | Close measured per-family losses with source-specific adapters | Website and NAV gains alone do not cover broad companies | Freeze independent opportunity labels before tuning; equal-budget new-company gains in missing families with zero material wrong-company publications; do not label inspected PR3 positives as held out |
 | First complete release, 13-14 October target | Submit frozen complete version and obtain official breakdown | Private union and weights cannot be reproduced from smoke cohorts | Clean install, 100-profile artifact, source/model/license/cost declarations, executable command and exact commit; no personal credentials |
 | 14-16 October | Repair the largest official score loss; expand only the winning mechanism | Real official feedback determines the next revision | Component delta, identity/refresh checks, per-family gain and budget receipts; retain prior version as rollback |
 | 17 October | Freeze final revision and rerun clean shard | Ranking penalizes repeat failures | Repeatable cold run and source failures produce every terminal output; resource ceilings and evidence checks pass |

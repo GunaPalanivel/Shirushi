@@ -20,7 +20,7 @@ from shirushi_eval.wire import internal_records
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, required=True)
-    parser.add_argument('--counts', type=int, nargs='+', default=[100, 300, 1100])
+    parser.add_argument('--counts', type=int, nargs='+', default=[100, 300, 1100, 1500])
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=False)
     subjects = [str(123450000 + i) for i in range(max(args.counts))]
@@ -49,10 +49,14 @@ def main():
             '--output', str(folder / 'output.jsonl'), '--report', str(folder / 'report.json'),
             '--work-dir', str(folder / 'work'), '--run-id', 'boundary-' + str(count), '--offline',
             '--cutoff', '2026-01-01T00:00:00Z']
+        if count == 1100 and 100 in args.counts:
+            command += ['--previous', str(args.output_dir / '100/output.jsonl'),
+                        '--store', str(args.output_dir / '100/work/snapshots')]
         process = subprocess.run(command, cwd=ROOT, check=False, timeout=120)
         report = load(folder / 'report.json')
         rows = read_envelopes(folder / 'output.jsonl')
-        audit = SourceAudit(folder / 'work/snapshots', subjects[:count])
+        store = args.output_dir / '100/work/snapshots' if '--store' in command else folder / 'work/snapshots'
+        audit = SourceAudit(store, subjects[:count])
         for row in internal_records(rows):
             evidence = {e['id']: e for e in row['evidence']}
             for claim in row['claims']:
@@ -65,6 +69,10 @@ def main():
             'exit_code': process.returncode}
         if process.returncode or not result['membership_order_matches'] or not result['all_completed']:
             raise ValueError('Cold contract fixture failed')
+        if '--previous' in command:
+            result['growing_refresh_value_changes'] = sum(len(r['changes']) for r in rows)
+            if result['growing_refresh_value_changes']:
+                raise ValueError('Growing batch changed identical previous facts')
         if count == min(args.counts):
             replay = folder / 'replay'
             replay.mkdir()

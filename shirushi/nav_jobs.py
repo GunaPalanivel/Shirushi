@@ -97,7 +97,8 @@ class NavFeed:
         except (SourceUnavailable, ValueError, KeyError, TypeError) as exc:
             # One shared bootstrap failure must not consume the run budget once
             # per company. A truncated window never establishes absence.
-            self.error = 'NAV feed bootstrap unavailable: ' + str(exc)
+            if self.error is None:
+                self.error = 'NAV feed bootstrap unavailable: ' + str(exc)
             raise SourceUnavailable(self.error, 'blocked') from None
         finally:
             self.lock.release()

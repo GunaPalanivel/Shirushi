@@ -42,6 +42,8 @@ def envelope(subject, run_id, started, decisions, previous=None, error=None, run
 def worker(connection, job):
     """One CPU worker shares proof caches. The supervisor owns the wall deadline."""
     try:
+        from .resources import worker_memory_limit
+        worker_memory_limit()
         subjects = job['subjects']
         store = SnapshotStore(job['store'])
         checker = EvidenceChecker(store, subjects, job['deadline'])

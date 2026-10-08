@@ -298,9 +298,14 @@ class CoverageRepairTests(unittest.TestCase):
         config = load(ROOT / 'configs/local-live.json'); config.update(min_host_interval_seconds=0, max_retries=0)
         budget = Budget(config, time.monotonic() + 3)
         nav = NavFeed(Fetcher(budget, lambda *args: (403, {}, b'')))
-        for _ in range(3):
-            with self.assertRaises(SourceUnavailable): nav.headers()
+        reasons = []
+        for _ in range(100):
+            with self.assertRaises(SourceUnavailable) as failure:
+                nav.headers()
+            reasons.append(str(failure.exception))
         self.assertEqual(budget.requests, 1)
+        self.assertEqual(len(set(reasons)), 1)
+        self.assertEqual(reasons[0].count('NAV feed bootstrap unavailable:'), 1)
 
     def test_nav_and_post_credentials_cannot_escape_scoped_endpoints(self):
         config = load(ROOT / 'configs/local-live.json'); budget = Budget(config, time.monotonic() + 3)

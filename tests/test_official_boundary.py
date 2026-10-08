@@ -181,7 +181,7 @@ class OfficialBoundaryTests(unittest.TestCase):
         self.assertTrue(validate_public_contract([SUBJECT, SUBJECT], wire))
 
     def test_growing_input_partition_and_strict_identity(self):
-        for count in (1, 100, 101, 300, 1100):
+        for count in (1, 100, 101, 300, 1100, 1500):
             records = [{'organisation_number': str(123450000 + i)} for i in range(count)]
             partition = shards(records)
             self.assertEqual([r for shard in partition for r in shard], records)
@@ -192,6 +192,11 @@ class OfficialBoundaryTests(unittest.TestCase):
         path.write_text('NO ' + SUBJECT)
         with self.assertRaises(ValueError):
             read_inputs(path)
+        invalid_json = self.root / 'input.json'
+        for value in (None, 23, SUBJECT, {'organisation_numbers': None}):
+            invalid_json.write_text(json.dumps(value))
+            with self.assertRaises(ValueError):
+                read_inputs(invalid_json)
         path.write_text(SUBJECT + '\n' + SUBJECT)
         with self.assertRaises(ValueError):
             read_inputs(path)

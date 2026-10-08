@@ -14,6 +14,8 @@ def internal_records(envelopes):
 
 def validate_public_contract(subjects, envelopes):
     errors = []
+    if not isinstance(envelopes, list) or any(not isinstance(e, dict) for e in envelopes):
+        return ['Public output must be a list of envelope objects']
     if [e.get('organisation_number') for e in envelopes] != subjects:
         errors.append('Public output differs from supplied ordered membership')
     states = {'available', 'not_available', 'blocked', 'not_applicable', 'ambiguous', 'failed'}
@@ -21,8 +23,19 @@ def validate_public_contract(subjects, envelopes):
         if not {'organisation_number', 'run', 'claims', 'evidence', 'changes', 'errors', 'operations'} <= envelope.keys():
             errors.append('Missing public example fields')
             continue
+        if (not isinstance(envelope['claims'], list) or any(not isinstance(c, dict) or not
+                {'field', 'value', 'availability', 'evidence_ids'} <= c.keys() for c in envelope['claims'])
+                or not isinstance(envelope['evidence'], list) or any(not isinstance(e, dict) or
+                    not isinstance(e.get('id'), str) for e in envelope['evidence'])):
+            errors.append('Invalid public claim or evidence shape')
+            continue
         evidence = {e['id']: e for e in envelope['evidence']}
+        if len(evidence) != len(envelope['evidence']):
+            errors.append('Duplicate public evidence ID')
         for claim in envelope['claims']:
+            if not isinstance(claim['evidence_ids'], list):
+                errors.append('Public evidence references must be a list')
+                continue
             if claim['field'] == 'verified_website':
                 errors.append('Internal website alias leaked into public output')
             if claim['availability'] not in states:

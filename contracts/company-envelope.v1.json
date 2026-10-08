@@ -85,14 +85,23 @@
     "optional": [
       "--previous",
       "--store",
-      "--source-manifest"
+      "--source-manifest",
+      "--live",
+      "--cutoff",
+      "--output-contract",
+      "--showcase-dir"
     ],
     "implemented": true,
-    "scope": "offline bounded supplied batch with saved registry and optional registered roles",
+    "scope": "Bounded local offline or supervised live acquisition; supplied frozen JSONL/CSV identity supported",
     "unsupported": [
-      "live retrieval",
-      "resume",
-      "CSV registry"
+      "resume"
     ]
+  },
+  "published_contract_adapter": {
+    "command": "python -m shirushi.official",
+    "wire": "builderr-minimal-v1",
+    "website_alias": "official_website",
+    "private_harness_confirmed": false,
+    "guide": "docs/pr4-evaluator-command.md"
   }
 }
