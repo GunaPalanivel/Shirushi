@@ -34,4 +34,4 @@ jobs:
       - name: Test contract rejection cases
         run: python -X dev -W error -m unittest discover -s tests -v
       - name: Compile Python modules
-        run: python -W error -m compileall -q shirushi tools tests
+        run: python -W error -m compileall -q shirushi shirushi_eval tools tests

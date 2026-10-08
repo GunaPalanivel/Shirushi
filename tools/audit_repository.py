@@ -120,7 +120,7 @@ def main():
                 errors.append(f'Broken tracked document link: {path.name}: {target}')
     paths = [ROOT / name for name in ('.gitignore', '.python-version', 'pyproject.toml', 'README.md',
                                       'CONTRIBUTING.md', 'SECURITY.md', '.editorconfig', '.gitattributes')]
-    for directory in ('docs', 'configs', 'contracts', 'shirushi', 'tools', 'tests', '.github'):
+    for directory in ('docs', 'configs', 'contracts', 'shirushi', 'shirushi_eval', 'tools', 'tests', '.github'):
         paths.extend(p for p in (ROOT / directory).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
     report = {'generated_at': datetime.now(timezone.utc).isoformat(),
               'status': 'PASS' if not errors else 'FAIL', 'scope': 'repository_bootstrap',

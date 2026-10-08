@@ -1,6 +1,6 @@
 # Saved-company integration
 
-This milestone implements the former Phase 1: an offline, one-company vertical slice. Its outcome is an inspectable supported envelope and a refresh that cannot invent a removal. Live retrieval, multi-company scheduling, resume, synthesis, UI and official scoring remain later engineering gates.
+This milestone implements the former Phase 1: an offline, one-company vertical slice. Its outcome is an inspectable supported envelope and a refresh that cannot invent a removal. This document preserves the first milestone acceptance record. Multi-company scheduling and saved roles now extend this path in [batch-runner hardening](batch-runner-hardening.md); live retrieval, resume, synthesis, UI and official scoring remain later gates.
 
 ## Forecast recorded before validation
 
@@ -54,12 +54,18 @@ The validation suite passes 48 tests in Python development mode with warnings as
 
 The portable suite is also checked from a separate directory containing only public code, synthetic tests, configs and contracts. No ignored research or real-company data is required for those tests. The real source audit remains local and separately hash-bound.
 
-The previous hosted contract CI failed before Windows tests: `actions/setup-python` could not install 3.12.12 because its release manifest lists Linux builds only. Linux now retains the production pin; Windows uses pinned 3.12.10 to test compatibility. This corrects setup and does not claim the revised hosted workflow has passed. The earlier successful run was Dependency Graph, not contract CI; the initial interpretation was corrected.
+The previous hosted contract CI failed before Windows tests: `actions/setup-python` could not install 3.12.12 because its release manifest lists Linux builds only. Linux now retains the production pin; Windows uses pinned 3.12.10 to test compatibility. The saved-company commit subsequently passed the corrected hosted contract workflow on Linux and Windows (run 37674569882). The earlier successful run was Dependency Graph, not contract CI; the initial interpretation was corrected.
 
-Limits: the local deadline bounds initial archive scanning, not a process-wide hard timeout. Archive verification uses bounded reads (64 MiB archive, 512 MiB expanded stream, 1 MiB row), but memory and CPU are not externally enforced. Filesystem interruption, transactional finalization, process-level budgets and batch scheduling belong to batch-runner hardening. An operator receipt is a trust input. No independent human adjudication or fresh external-company coverage is established.
+Historical first-milestone limits: its local deadline bounded initial archive scanning, not a process-wide hard timeout. Archive verification uses bounded reads (64 MiB archive, 512 MiB expanded stream, 1 MiB row), but memory and CPU are not externally enforced. The batch milestone now adds supervised worker termination and atomic artifact publication; externally enforced memory/CPU limits, resume and full filesystem transaction recovery remain unimplemented. An operator receipt is a trust input. No independent human adjudication or fresh external-company coverage is established.
 
 The official evidence/identity and refresh requirements motivate exact attribution, acquisition lineage and replay checks. These tests do not measure the official 50-point recall component, 12-point synthesis or 8-point UX. See the [rubric-to-standards mapping](engineering-standards.md).
 
 ## Research discipline
 
 Work backwards from supported output; predict each control before execution; use primary source bytes and inspectable reference implementation patterns; read full sources and limitations; retain failures; run the smallest falsifiable case first; separate proposal from acceptance; keep reusable acceptance tests and evidence receipts. The starter replay was inspected for snapshot comparison behavior, with special attention to failure-versus-removal. Its implementation was neither copied nor executed because reuse terms remain unestablished. Prior company-research papers informed attribute-level retrieval, copy-aware provenance and entity integration; no paper is evidence that this implementation attains a score.
+
+## Correction and independent review — 8 October 2026
+
+P1 prior-state checks now reject unreferenced evidence, unavailable history containing a value, future observation timestamps and source-context mismatches. The separate reviewer found the orphan-evidence gap; each correction has a counterexample, and legitimate history remains supported. Network-enabled local runs are explicitly refused pending live-fetch/accounting tests.
+
+All 74 current tests passed locally and from public files only. A new one-company first/replay/failed-refresh run retained eight verified facts with zero false changes. A separate Codex reviewer directly checked source/archive bytes, exact typed values, locators, support tokens and refresh retention for all eight facts across all three artifacts, and independently confirmed the negative cases. The agent review passed; independent human review remains false. Historical 48-test receipts are unchanged; the superseding correction receipt is `.idea/buildDocs/p1-correction/validation-report.json`. See [retrieval validation](retrieval-validation.md) for the baseline/accounts order and 80+ evidence boundary.

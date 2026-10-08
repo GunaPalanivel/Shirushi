@@ -19,6 +19,7 @@ class Candidate:
     field: str
     value: object
     snapshot_id: str
+    locator: dict | None = None
 
 
 def extract(store, snapshot_id):

@@ -52,7 +52,7 @@
     "Evidence references resolve uniquely within their envelope.",
     "Source bytes, span support and exact-company attribution are checked separately in saved-company integration.",
     "Effective dates, reporting periods, units and scope are retained when relevant.",
-    "Failed acquisition does not erase previously supported claims."
+    "Failed acquisition preserves previously reverified support; unverifiable prior state is not republished."
   ],
   "sections": [
     "legal_identity_public_brand",
@@ -84,13 +84,13 @@
     ],
     "optional": [
       "--previous",
-      "--store"
+      "--store",
+      "--source-manifest"
     ],
     "implemented": true,
-    "scope": "offline one-company saved integration",
+    "scope": "offline bounded supplied batch with saved registry and optional registered roles",
     "unsupported": [
       "live retrieval",
-      "batch scheduling",
       "resume",
       "CSV registry"
     ]

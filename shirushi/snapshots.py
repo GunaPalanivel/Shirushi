@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from .contracts import loads
+from .artifacts import publish_new
 
 
 def digest(data):
@@ -30,8 +31,7 @@ class SnapshotStore:
         path = self.path(kind, identity)
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with path.open('xb') as stream:
-                stream.write(data)
+            publish_new(path, data)
         except FileExistsError:
             if path.read_bytes() != data:
                 raise ValueError('Existing snapshot has been corrupted')

@@ -33,13 +33,14 @@ def check_receipt(receipt):
             raise ValueError('Invalid registry receipt hash: ' + key)
 
 
-def find_row(data, receipt, organisation_number, compressed, deadline=None):
+def find_rows(data, receipt, subjects, compressed, deadline=None):
     """Verify the complete stream; retain the exact row, including framing bytes."""
     check_receipt(receipt)
     if len(data) > MAX_ARCHIVE_BYTES or digest(data) != receipt['sha256']:
         raise ValueError('Registry archive size or hash mismatch')
     stream = gzip.GzipFile(fileobj=io.BytesIO(data)) if compressed else io.BytesIO(data)
-    found = None
+    found = {}
+    wanted = set(subjects)
     total, hasher = 0, hashlib.sha256()
     with stream:
         index = 0
@@ -60,18 +61,30 @@ def find_row(data, receipt, organisation_number, compressed, deadline=None):
             errors, identities = validate_inputs([row])
             if errors:
                 raise ValueError(f'Invalid registry identity at row {index}')
-            if identities[0] == organisation_number:
-                if found is not None:
+            if identities[0] in wanted:
+                if identities[0] in found:
                     raise ValueError('Duplicate requested subject in registry')
-                found = (line, index)
+                found[identities[0]] = (line, index)
     if hasher.hexdigest() != receipt['uncompressed_sha256']:
         raise ValueError('Expanded registry hash mismatch')
-    if found is None:
-        raise ValueError('Requested subject absent from frozen registry')
     return found
 
 
+def find_row(data, receipt, organisation_number, compressed, deadline=None):
+    found = find_rows(data, receipt, [organisation_number], compressed, deadline)
+    if organisation_number not in found:
+        raise ValueError('Requested subject absent from frozen registry')
+    return found[organisation_number]
+
+
 def acquire(path, receipt, organisation_number, store, deadline):
+    results = acquire_batch(path, receipt, [organisation_number], store, deadline)
+    if organisation_number not in results:
+        raise ValueError('Requested subject absent from frozen registry')
+    return results[organisation_number]
+
+
+def acquire_batch(path, receipt, subjects, store, deadline):
     path = Path(path)
     if path.stat().st_size > MAX_ARCHIVE_BYTES:
         raise ValueError('Registry archive exceeds local bound')
@@ -79,9 +92,12 @@ def acquire(path, receipt, organisation_number, store, deadline):
     if not (path.name.endswith('.jsonl') or path.name.endswith('.jsonl.gz')):
         raise ValueError('Only JSONL and JSONL.GZ registry inputs are supported')
     data = path.read_bytes()
-    row, index = find_row(data, receipt, organisation_number, compressed, deadline)
+    rows = find_rows(data, receipt, subjects, compressed, deadline)
     parent = store.put('objects', data)
-    metadata = dict(receipt, parent_sha256=parent, row_number=index,
-                    compressed=compressed, organisation_number=organisation_number,
-                    snapshot_kind='registry_jsonl')
-    return store.save(row, metadata)
+    results = {}
+    for subject, (row, index) in rows.items():
+        metadata = dict(receipt, parent_sha256=parent, row_number=index,
+                        compressed=compressed, organisation_number=subject,
+                        snapshot_kind='registry_jsonl')
+        results[subject] = store.save(row, metadata)
+    return results

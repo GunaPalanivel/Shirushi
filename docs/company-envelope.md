@@ -4,13 +4,13 @@ The [machine-readable contract](../contracts/company-envelope.v1.json) locks our
 
 Input is a nonempty JSONL batch of objects with a nine-digit ASCII `organisation_number` string. Reject malformed and duplicate input before network activity. For valid input, output one JSONL envelope for exactly each supplied identity in order, including failure. The input number is the anchor; no name-based substitution is allowed.
 
-The implemented offline, one-company runner interface is:
+The implemented offline batch runner accepts up to the configured `sample_size`:
 
 ```powershell
 python -m shirushi.run --organisations batch.jsonl --registry frozen-registry.jsonl.gz --registry-receipt registry-receipt.json --config configs/local-pilot.json --output out/run/envelopes.jsonl --report out/run/report.json --run-id local-001
 ```
 
-Optional `--previous` supplies prior state, which is reverified against retained bytes before use. `--store` selects the shared content-addressed snapshot directory. Resume and batch scheduling remain unimplemented. See [saved-company integration](saved-company-integration.md) for receipt requirements, field semantics and replay commands.
+Optional `--previous` supplies prior state, which is reverified against retained bytes before use. `--store` selects the shared content-addressed snapshot directory. `--source-manifest` supplies saved official role receipts with `configs/local-pilot-static.json`. The supervisor preserves input order, terminates blocked work and publishes terminal failures for unfinished identities. Resume remains unimplemented. See [batch-runner hardening](batch-runner-hardening.md) for deadlines, atomic publication and reference evaluation, and [saved-company integration](saved-company-integration.md) for frozen-field semantics.
 
 An envelope contains `organisation_number`, `run`, `claims`, `evidence`, `changes`, `errors`, and `operations`. Run terminal states are locally `completed` or `failed`; field availability is separately `available`, `not_available`, `blocked`, `not_applicable`, `ambiguous`, or `failed`. Run completion does not imply all information is available.
 

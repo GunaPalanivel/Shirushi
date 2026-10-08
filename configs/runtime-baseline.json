@@ -1,6 +1,6 @@
 {
-  "scope": "offline_saved_company_integration",
+  "scope": "offline_batch_pilot",
   "python": "3.12.12",
   "third_party_dependencies": [],
-  "description": "Standard-library saved-company runner and validation; not the eventual live agent dependency lock."
+  "description": "Standard-library supervised batch runner, saved official roles and independent source-reference evaluation; not the eventual live agent dependency lock."
 }

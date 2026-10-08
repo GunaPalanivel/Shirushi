@@ -11,10 +11,10 @@ End-to-end sequence:
 | Milestone | Deliverable | Acceptance gate |
 | --- | --- | --- |
 | Repository bootstrap | Contract, source policy, runtime and configuration | Audited inputs; reproducible boundary checks; unknowns recorded |
-| Saved-company integration | Canonical identity → snapshot → candidate → checker → envelope → replay | Inspect actual support and repeat without false change |
+| Saved-company integration | Canonical identity â†’ snapshot â†’ candidate â†’ checker â†’ envelope â†’ replay | Inspect actual support and repeat without false change |
 | Batch-runner hardening | 20-company bounded pilot | Exact membership, terminal output under failure, no unsupported material facts |
 | Retrieval baseline | Independently labelled 100-company baseline | Attribute opportunities and failure stages measured |
-| Retrieval ablations | E2–E6 source experiments | Same-pool confirmed gain within budget and precision gates |
+| Retrieval ablations | E2â€“E6 source experiments | Same-pool confirmed gain within budget and precision gates |
 | Product acceptance | Supported synthesis/UI, refresh/resume, sealed assessment | Product tasks, evidence, chaos and resource checks |
 | Release candidate | Frozen clean-room candidate, 100-company live smoke | One command, pinned dependencies, declared access/cache/cost |
 | Official evaluation | Separately authorized run/revisions | Organizer evidence establishes score and qualification |
@@ -35,7 +35,7 @@ Bootstrap acceptance evidence:
 | Declared budgets | [20](../configs/local-pilot.json), [100](../configs/local-smoke.json), [300](../configs/local-evaluation.json) | Finite typed settings; inactive sources refused; defaults are local only |
 | Unresolved official facts | [Official template](../configs/official-run.template.json) | Intentionally rejected, not silently given local defaults |
 | Research decisions and forecasts | [Research decisions](research-decisions.md) | Positive/negative controls recorded before run |
-| Repository practices | [CONTRIBUTING](../CONTRIBUTING.md), [SECURITY](../SECURITY.md), [CI](../.github/workflows/contract-validation.yml) | Portable checks, editing conventions, immutable action pins; prior hosted Windows setup failed; corrected workflow pending |
+| Repository practices | [CONTRIBUTING](../CONTRIBUTING.md), [SECURITY](../SECURITY.md), [CI](../.github/workflows/contract-validation.yml) | Portable checks, editing conventions, immutable action pins; saved-company commit passed hosted Linux and Windows checks; batch change locally validated |
 
 Reproduce on this machine:
 
@@ -54,6 +54,8 @@ Manual trace before integration:
 3. Source supports employees `0`: available zero with evidence is allowed. No fetched result: null plus reason, never zero.
 4. Same accepted semantic claim at the second observation: keep evidence/history without a material change. Timeout: preserve prior support and mark observation failure.
 
-Saved-company integration is implemented with a frozen-row reader, retained archive/row snapshots, separate extraction and acceptance, envelope serialization and semantic refresh. [Implementation and acceptance evidence](saved-company-integration.md) documents the narrow offline scope. The next milestone is batch-runner hardening, beginning with exact membership and terminal output under fault injection on 20 companies. Add independent reference labels before claiming recall.
+Saved-company integration is implemented with a frozen-row reader, retained archive/row snapshots, separate extraction and acceptance, envelope serialization and semantic refresh. [Implementation and acceptance evidence](saved-company-integration.md) documents the narrow offline scope. [Batch-runner hardening](batch-runner-hardening.md) implements the twenty-company supervisor, saved official roles and separate source-reference audit. The next milestone is the hundred-company retrieval baseline: expand reference opportunity coverage and freeze the baseline strategy, source snapshots and reference pool before any challenger. Structured accounts and deeper PDFs remain E2 in source challengers, matching the original phase sequence. Existing accounts bodies are reference-only, not maker capabilities. The separate reviewer has now adjudicated corrected P1 and all published/reference claims in the existing frozen pilot. These agent-review results apply only to their bound artifacts, not human review or a new twenty-company run on corrected code. See [retrieval validation and promotion gates](retrieval-validation.md).
+
+A safe live fetcher and global request/retry/redirect/byte/cost accounting must pass adversarial tests before any live baseline or challenger. An offline baseline cannot certify live resource controls. Independent agent adjudication is recorded separately from automated source auditing and independent human review.
 
 Official release remains blocked on actual resource settings, confirmed wire adapter, source access declarations, complete agent implementation and smoke/clean-room evidence. Unknown family weights and equivalence rules limit private-score prediction. Deadline timezone remains unknown. These are explicit later gates, not excuses to delay local coding.

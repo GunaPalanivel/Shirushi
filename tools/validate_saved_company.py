@@ -11,10 +11,10 @@ from shirushi.run import read_records  # noqa: E402
 from shirushi.snapshots import SnapshotStore, digest  # noqa: E402
 
 
-def semantic_claims(envelope):
+def semantic_claims(envelope, supported_only=False):
     return [{k: v for k, v in c.items() if k not in
              ('last_observed_at', 'freshness', 'current_attempt_reason')}
-            for c in envelope['claims']]
+            for c in envelope['claims'] if not supported_only or c['availability'] == 'available']
 
 
 def main(argv=None):
@@ -30,14 +30,16 @@ def main(argv=None):
         records = read_records(args.organisations)
         first, second = read_records(args.first), read_records(args.replay)
         contract = load(ROOT / 'contracts/company-envelope.v1.json')
+        checker = EvidenceChecker(SnapshotStore(args.store), subjects=[r['organisation_number'] for r in records])
         for label, envelopes in [('first', first), ('second', second)]:
             errors.extend(label + ': ' + e for e in validate_envelopes(records, envelopes, contract))
             for envelope in envelopes:
-                EvidenceChecker(SnapshotStore(args.store)).verify_previous(envelope, envelope['organisation_number'])
+                checker.verify_previous(envelope, envelope['organisation_number'])
         if errors:
             raise ValueError('; '.join(errors))
         for before, after in zip(first, second):
-            if semantic_claims(before) != semantic_claims(after):
+            supported_only = args.expect == 'failed-refresh'
+            if semantic_claims(before, supported_only) != semantic_claims(after, supported_only):
                 errors.append('Semantic claims or first observation changed')
             if before['evidence'] != after['evidence'] or before.get('history', []) != after.get('history', []):
                 errors.append('Evidence or history changed on unchanged replay')

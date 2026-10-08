@@ -11,6 +11,7 @@
     {"id": "norid_batch", "status": "disabled", "network": true, "basis": "Bulk access not established; no batch permission inferred"},
     {"id": "nav_jobs", "status": "disabled", "network": true, "basis": "Access credentials and permitted method not established"},
     {"id": "patents_procurement", "status": "disabled", "network": true, "basis": "Coverage overlap and access not measured"},
-    {"id": "unofficial_social_reviews", "status": "disabled", "network": true, "basis": "No permitted access proof or independent sentiment support"}
+    {"id": "unofficial_social_reviews", "status": "disabled", "network": true, "basis": "No permitted access proof or independent sentiment support"},
+    {"id": "brreg_roles_snapshot", "status": "enabled", "network": false, "basis": "Saved responses from the official open roles API under NLOD 2.0; fixed endpoint and original receipt required", "scope": "Registered management/board roles only; no inferred employment or website ownership"}
   ]
 }

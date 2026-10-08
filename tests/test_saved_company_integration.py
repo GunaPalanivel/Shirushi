@@ -214,11 +214,13 @@ class SavedCompanyTests(unittest.TestCase):
                 self.assertFalse(output.exists())
                 self.assertEqual(load(report)['status'], 'rejected_input')
 
-    def test_batch_scope_is_explicitly_rejected(self):
+    def test_batch_keeps_absent_identity_as_failed_terminal_result(self):
         self.inputs.write_text('{"organisation_number":"123456789"}\n{"organisation_number":"987654321"}\n', encoding='utf-8')
         code, output, _ = self.run_cli()
-        self.assertEqual(code, 2)
-        self.assertFalse(output.exists())
+        self.assertEqual(code, 1)
+        envelopes = read_records(output)
+        self.assertEqual([e['organisation_number'] for e in envelopes], ['123456789', '987654321'])
+        self.assertEqual(envelopes[1]['run']['terminal_status'], 'failed')
 
     def test_receipt_malformed_future_and_credential_url_rejected(self):
         for receipt in ([], dict(self.receipt, retrieved_at='2099-01-01T00:00:00Z'),
@@ -245,6 +247,35 @@ class SavedCompanyTests(unittest.TestCase):
         first.write_text(json.dumps(old) + '\n', encoding='utf-8')
         self.assertEqual(self.run_cli('second', previous=first)[0], 2)
 
+    def test_unreferenced_previous_evidence_is_not_carried_forward(self):
+        _, first, _ = self.run_cli('first')
+        old = read_records(first)[0]
+        extra = dict(old['evidence'][0], id='orphan', claim_span='unverified extra source')
+        old['evidence'].append(extra)
+        first.write_text(json.dumps(old) + '\n', encoding='utf-8')
+        code, output, _ = self.run_cli('second', previous=first)
+        self.assertEqual(code, 2)
+        self.assertFalse(output.exists())
+
+    def test_previous_history_cannot_hide_unsupported_value(self):
+        _, first, _ = self.run_cli('first')
+        old = read_records(first)[0]
+        old['history'] = [{'field': 'registered_employees', 'availability': 'failed',
+                           'value': 999, 'reason': 'unknown', 'evidence_ids': []}]
+        first.write_text(json.dumps(old) + '\n', encoding='utf-8')
+        code, output, _ = self.run_cli('second', previous=first)
+        self.assertEqual(code, 2)
+        self.assertFalse(output.exists())
+
+    def test_future_previous_observation_is_rejected(self):
+        _, first, _ = self.run_cli('first')
+        old = read_records(first)[0]
+        old['claims'][0]['last_observed_at'] = '2099-01-01T00:00:00Z'
+        first.write_text(json.dumps(old) + '\n', encoding='utf-8')
+        code, output, _ = self.run_cli('second', previous=first)
+        self.assertEqual(code, 2)
+        self.assertFalse(output.exists())
+
     def test_no_overwrite_of_existing_outputs(self):
         _, output, report = self.run_cli()
         original = (output.read_bytes(), report.read_bytes())
@@ -255,6 +286,16 @@ class SavedCompanyTests(unittest.TestCase):
         code, output, _ = self.run_cli(extra=['--config', str(ROOT / 'configs/official-run.template.json')])
         self.assertEqual(code, 2)
         self.assertFalse(output.exists())
+
+    def test_live_local_run_is_refused_before_source_processing(self):
+        config = load(ROOT / 'configs/local-pilot.json')
+        config['network_enabled'] = True
+        path = self.root / 'live.json'
+        path.write_text(json.dumps(config), encoding='utf-8')
+        code, output, report = self.run_cli(extra=['--config', str(path)])
+        self.assertEqual(code, 2)
+        self.assertFalse(output.exists())
+        self.assertIn('Only local offline', load(report)['errors'][0])
 
     def test_verification_deadline_rejected(self):
         with self.assertRaises(ValueError):
