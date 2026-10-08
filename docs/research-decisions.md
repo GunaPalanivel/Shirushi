@@ -106,3 +106,27 @@ Pending promotion evidence: independently reviewed cross-content labels,
 equal-budget A/B/C paired comparison, actual live scale/chaos receipts, permitted
 discovery activation and organizer execution calibration. Keep PR3 a draft
 while required evidence is missing, even when all CI checks pass.
+
+First hosted external results at 14eaaa30: development and validation each
+returned 100 terminal rows and zero supported external facts. Development had
+five domain candidates/four retrieved pages; validation had two/one. Neither
+cohort established a verified website or content-family gain. Discovery was not
+activated because no applicable account-rights receipt or search key was present.
+This contradicts any claim that the implemented funnel already improves recall.
+
+The runs also exposed two development and one validation identity failures.
+Read-only official-response inspection found a trailing blank activity line in
+all three responses (889191872, 968677748, 990597669). The field checker correctly
+rejects that optional list, but the worker incorrectly required every optional
+entity candidate to pass before accepting any identity. Corrected the boundary:
+exact organisation number/self endpoint and a checked nonblank legal name are
+mandatory; optional rejections remain explicit null claims and named diagnostics.
+No raw activity is normalized into an accepted claim or product coverage.
+Counterexamples preserve the rejection, verify downstream accounts survive, and
+ensure wrong identities/missing names still prevent all optional routes.
+
+An independent-audit counterexample relabeled a structured verified website as
+business_products. Added separate script-locator, typed-context, date, family,
+slot and canonical-ID checks so the audit rejects that coverage inflation.
+The corrected local suite has 141 passing tests; fresh corrected-head hosted
+acquisition is still required. No paired content gain or official score exists.

@@ -69,6 +69,9 @@ def main():
         'failed_identity_attempts': [{'organisation_number': c['envelope']['organisation_number'],
             'reason': a.get('reason'), 'availability': a.get('availability')}
             for c in report['companies'] for a in c['attempts'] if a['source'] == 'brreg_entity' and a['status'] == 'failed'],
+        'rejected_registry_candidates': [{'organisation_number': c['envelope']['organisation_number'], **rejection}
+            for c in report['companies'] for a in c['attempts'] if a['source'] == 'brreg_entity'
+            for rejection in a.get('rejected_candidates', [])],
         'company_coverage_by_family': {f: len(values) for f, values in families.items()},
         'supported_external_facts': external_count, 'claims_by_field': fields,
         'source_attempts': len(attempts), 'source_failures': sum(a['status'] == 'failed' for a in attempts),

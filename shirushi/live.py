@@ -240,13 +240,18 @@ def worker(connection, job):
                     raise acquired['error']
                 if route == 'brreg_entity':
                     raw, sid = snapshot(subject, route, ENTITY + subject, {'data.brreg.no'})
-                    proposals = propose_api(store, sid)
-                    decisions = [check_api(store, c, subject) for c in proposals]
-                    if any(not d['accepted'] for d in decisions):
-                        raise SourceUnavailable('Entity candidate failed evidence verification', 'ambiguous')
                     body = loads(raw)
                     if body['organisasjonsnummer'] != subject or body['_links']['self']['href'] != ENTITY + subject:
                         raise SourceUnavailable('Entity identity mismatch', 'ambiguous')
+                    proposals = propose_api(store, sid)
+                    decisions = [check_api(store, c, subject) for c in proposals]
+                    report['rejected_candidates'] = [{'field': d['field'], 'reason': d['reason']}
+                        for d in decisions if not d['accepted']]
+                    # Optional source-field rejection must not discard an exact
+                    # legal identity or relax acceptance of the rejected field.
+                    if not any(d['accepted'] and d['field'] == 'legal_name'
+                               and d['claim']['value'].strip() for d in decisions):
+                        raise SourceUnavailable('No verified legal company name', 'ambiguous')
                     state['entity'] = body
                     state['entity_sid'] = sid
                     state['decisions'].extend(decisions)
