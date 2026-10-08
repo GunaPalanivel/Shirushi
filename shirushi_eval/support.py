@@ -59,6 +59,10 @@ class SourceAudit:
                 raise ValueError('Evidence origin differs from its source receipt')
             if item['claim_span'].encode('utf-8') not in raw:
                 raise ValueError('Evidence span is not in source bytes')
+            if receipt['source_class'] == 'nav_jobs':
+                from .nav_support import audit_nav
+                audit_nav(self, subject, claim, item, receipt, raw)
+                continue
             if receipt['source_class'] in ('brreg_entity', 'brreg_accounts', 'brreg_subunits', 'company_owned'):
                 from .live_support import audit_api, audit_web
                 if receipt['source_class'] == 'company_owned':
@@ -90,7 +94,7 @@ class SourceAudit:
                     ownership_id = receipt.get('operator_snapshot_id', item['snapshot_id'])
                     ownership_receipt = strict_json(self.read('receipts', ownership_id))
                     ownership_raw = self.read('objects', ownership_receipt['content_sha256'])
-                    from .html_support import legal_operator, audit_html
+                    from .html_support import legal_operator, audit_html, seller_contract
                     proof = legal_operator(ownership_raw, subject, anchor.get('navn', ''))
                     if proof and (ownership_receipt.get('organisation_number') != subject
                             or ownership_receipt.get('source_class') != 'company_owned'
@@ -102,8 +106,16 @@ class SourceAudit:
                     aliases = {host, host[4:] if host and host.startswith('www.') else 'www.' + host if host else None}
                     if receipt['declared_host'] not in aliases and not proof:
                         raise ValueError('Audit website discovery anchor mismatch')
+                    if proof and seller_contract(proof['text'], anchor.get('navn', '')):
+                        prefix = urlsplit(ownership_receipt['effective_url']).path.rsplit('/', 1)[0] + '/'
+                        if not urlsplit(receipt['effective_url']).path.startswith(prefix):
+                            raise ValueError('Audit page escapes verified seller path')
                     if item['extraction_method'] == 'explicit_subject_html_v1':
                         audit_html(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw)
+                        continue
+                    if item['extraction_method'] == 'scoped_catalogue_html_v2':
+                        from .html_support import audit_catalogue
+                        audit_catalogue(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw, ownership_receipt)
                         continue
                 (audit_web if receipt['source_class'] == 'company_owned' else audit_api)(subject, claim, item, receipt, raw)
                 continue

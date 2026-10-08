@@ -1,0 +1,10 @@
+{
+  "provider": "anysearch",
+  "terms_url": "https://anysearch.com/docs/auth",
+  "plan_rights_source": "Documented anonymous, IP-limited daily free discovery quota; no paid capacity or snippet republication assumed.",
+  "reviewed_at": "2026-10-08T13:00:00Z",
+  "permits_company_discovery_and_evaluation": true,
+  "request_interval_seconds": 0.5,
+  "max_candidates": 3,
+  "max_queries_per_company": 2
+}

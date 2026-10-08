@@ -1,0 +1,359 @@
+[
+  {
+    "organisation_number": "882792862",
+    "name": "MOELVEN LANGMOEN AS",
+    "posting_id": "7ab4dc7d-00d0-4243-bd7d-36f670ea668e",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/7ab4dc7d-00d0-4243-bd7d-36f670ea668e",
+    "employer_org": "974075199",
+    "title": "Produksjonsmedarbeider",
+    "posted": "2026-10-01T00:00:00+02:00",
+    "expires": "2026-10-18T00:00:00+02:00",
+    "source_sha256": "88ba3776a6ebf3cbf84616eb09926a154078a0712d689ce54a9a80a27de6b369",
+    "bridge_sha256": "27c914ac85ed8e6e3a97186a583799c5834650abec6f3971af86d539e92601cf",
+    "description_sha256": "aa7e9419d0285df732c8c917ba78e7db8101a5e896409eb0246a1cc9ebee96d8",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "896649442",
+    "name": "FJELLMARK AS",
+    "posting_id": "3c5dd839-108f-4406-b109-b414232a6909",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/3c5dd839-108f-4406-b109-b414232a6909",
+    "employer_org": "933262960",
+    "title": "Ubegrenset inntjening venter – Fjellmark søker ny selger",
+    "posted": "2026-10-01T15:23:11+02:00",
+    "expires": "2026-10-22T00:00:00+02:00",
+    "source_sha256": "bad2f7da3486cdb88d0e495313a433b0202fce67307e53d2cf093698367a623b",
+    "bridge_sha256": "a9d1c75eff61e2367c4bc2913a355c72d3307fdf6c6020465584ee7a4d5f0987",
+    "description_sha256": "92ab5ff7a75cc9aa5a20bdbf2537502a9f90aea8a5819acb7ad1a4a4a35fe9e9",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "931120417",
+    "name": "YPPER GASTRONOMI AS",
+    "posting_id": "0522c9ef-1264-4f5f-8960-1969ddfbfd00",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/0522c9ef-1264-4f5f-8960-1969ddfbfd00",
+    "employer_org": "831164832",
+    "title": "Lunsjvert / deltidskokk",
+    "posted": "2026-10-01T15:27:12+02:00",
+    "expires": "2026-10-31T00:00:00+01:00",
+    "source_sha256": "a052c72220502f56c6c4d201440886694106a29dc9118b805f946ce740aba4da",
+    "bridge_sha256": "cdb41da6cad417434ca3ede09bfc99f6ce030968a8bd60728e7dca10a48051f6",
+    "description_sha256": "22f66cb945454c3173811eb5aefdd2bd7458f7a56cc3491f770e332809e6ac53",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "913296117",
+    "name": "CMS KLUGE ADVOKATFIRMA AS",
+    "posting_id": "4ba4909d-f82f-49d2-a3b5-61e026598a21",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/4ba4909d-f82f-49d2-a3b5-61e026598a21",
+    "employer_org": "973152688",
+    "title": "Ønsker du en spennende jobb innen markedsføring i et ledende advokatfirma?",
+    "posted": "2026-10-01T00:00:01+02:00",
+    "expires": "2026-11-12T23:59:59+01:00",
+    "source_sha256": "05c552ea203ba41ca6fb4ada9f524e0e62b191a1407f63b9309d0f885c9d99b3",
+    "bridge_sha256": "f72cb3fcf59b70a47a5de63a827eb862395fbe3549466ec978a37a00081c9b46",
+    "description_sha256": "364f1ff5e8caec94b09f5af631f359fec7cb46dba1710cfa54bf1ad3351b27bc",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "981948831",
+    "name": "TONSTAD BAKERI AS",
+    "posting_id": "adf449a4-b4c5-4d71-9764-f3a7bd25f402",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/adf449a4-b4c5-4d71-9764-f3a7bd25f402",
+    "employer_org": "971782587",
+    "title": "Assisterende butikksjef - Tonstad Bakeri - Sirdal",
+    "posted": "2026-10-01T15:55:39+02:00",
+    "expires": "2026-10-31T00:00:00+01:00",
+    "source_sha256": "8e05753383fe2fc70975264ed57b127178b06506b32e0c75ff601b076b6e6d6a",
+    "bridge_sha256": "d4e810ea00d0f13bc6ee102fbd8db1120f8d3dd620205c3884969fef54bcd550",
+    "description_sha256": "9ea90353e7f4a3f736ae053b31c8446caccca465b01caacd3ce88ef66bb04b6f",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "983974899",
+    "name": "UNIVERSITETSSYKEHUSET NORD-NORGE HF",
+    "posting_id": "5c22ba7c-717c-4073-90c8-0286fcc64400",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/5c22ba7c-717c-4073-90c8-0286fcc64400",
+    "employer_org": "974795787",
+    "title": "Sykepleier/kreftsykepleier ved Kreftavdelingens sengepost",
+    "posted": "2026-08-27T00:00:00+02:00",
+    "expires": "2026-10-30T00:00:00+01:00",
+    "source_sha256": "3a36568ff62f70d7f35360ed7dc7b91a6ea9715334887ad9fe3eafce9881262b",
+    "bridge_sha256": "2664353469442ff36bbb8396a7af829887d6eab52d434bf89da4291ed15bb55f",
+    "description_sha256": "9ed0ec9fa6950fa02e8fb368674b58fffb6a232ae524d572003aa6f3229d71b2",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "925898953",
+    "name": "KIRKETUNET BARNEHAGE AS",
+    "posting_id": "a0a05ecf-c6e5-48b9-b15d-c8d4691638cd",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/a0a05ecf-c6e5-48b9-b15d-c8d4691638cd",
+    "employer_org": "973448706",
+    "title": "Spennende stilling som fagansvarlig i Kirketunet barnehage AS",
+    "posted": "2026-10-01T16:18:06+02:00",
+    "expires": "2026-10-23T00:00:00+02:00",
+    "source_sha256": "c9fa0290587756f68f1a11cc48cb88777a50efb6c27d1f84cd70e1bd54d11135",
+    "bridge_sha256": "463f3919b87047a1ff7a0006e4f1e4f811538aefbeff7a9c5d7236f28c67c50b",
+    "description_sha256": "2c36cf86e0eab17a55c3b6e593d31cb20505979d2f88d75771dd592e1c37b5f8",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "931920146",
+    "name": "AUTONOA AS",
+    "posting_id": "36415db0-aecd-4224-89b6-1901d1009dd9",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/36415db0-aecd-4224-89b6-1901d1009dd9",
+    "employer_org": "831991852",
+    "title": "Bilselger søkes",
+    "posted": "2026-10-01T17:29:28+02:00",
+    "expires": "2026-10-31T00:00:00+01:00",
+    "source_sha256": "bf7973ca5016e675d44be715b52a03b0105652e67bc127f88ff3af779d723dd8",
+    "bridge_sha256": "a685e92f0371e2e35b90909ec49d65fe383bedea47789823673ef07850a12870",
+    "description_sha256": "db528fa3ce4b6696155daff3b6fd3c5e758b7de3ba8969bdb061c74f13850449",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "911874296",
+    "name": "BEMANNINGSHJELPEN AS",
+    "posting_id": "829cb2eb-07c2-46be-8a3c-7940ca95caee",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/829cb2eb-07c2-46be-8a3c-7940ca95caee",
+    "employer_org": "911910640",
+    "title": "Barnehageassistenter (heltid) søkes. ",
+    "posted": "2026-10-01T19:36:25+02:00",
+    "expires": "2026-10-31T00:00:00+01:00",
+    "source_sha256": "79b6d41295e8586618d132e556d5ca0c54b2191df9851c5ea0b325626209b6bd",
+    "bridge_sha256": "1e5cd63782ae3b534f09d7aff0c9bf51d96672136aca3c3980e362b918988d56",
+    "description_sha256": "5911c2fa2226717fe7db6076fccd45854d20881ec0cd6dbc587c45d9a06122f7",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "947054600",
+    "name": "ELKJØP NORGE AS",
+    "posting_id": "eec90fe7-f9d9-46a4-9567-1b7f7cf7eaa8",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/eec90fe7-f9d9-46a4-9567-1b7f7cf7eaa8",
+    "employer_org": "972129100",
+    "title": "Områdeleder Lager",
+    "posted": "2026-10-01T00:00:00+02:00",
+    "expires": "2026-10-18T00:00:00+02:00",
+    "source_sha256": "46b0d2269f19e972891dc5d1a24dc7562496c096f29a73a172bed98855ecde33",
+    "bridge_sha256": "311a6476f78feaa4d812c3cf65285b996f5d114f4ec482eca6cc28d5866def46",
+    "description_sha256": "012e0809587397583b3d55504cd739b3e3375e66e5464cdf70a271cf8dccc5c4",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "913911598",
+    "name": "KST MASKIN AS",
+    "posting_id": "af27faf8-ffbd-4568-959f-096257cd58ba",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/af27faf8-ffbd-4568-959f-096257cd58ba",
+    "employer_org": "913940652",
+    "title": "Brøytesjåfør søkes",
+    "posted": "2026-10-01T21:32:10+02:00",
+    "expires": "2026-10-31T00:00:00+01:00",
+    "source_sha256": "e4dfaaa0b0ff7a66c8045f1988d1aafeff1a2f8207d36383918d25afd721843a",
+    "bridge_sha256": "efdc058ba5de30a7afba641c6c4060417c6696e5d0ba030d3b0012303dddc373",
+    "description_sha256": "514c516357fe5949f61d0527734c518413435a38ddcfeadb001d53a68bbf06e7",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "922140936",
+    "name": "BRYGGERIKJELLEREN AS",
+    "posting_id": "b0b9075a-7558-43e4-9eab-17eb2d168e2e",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/b0b9075a-7558-43e4-9eab-17eb2d168e2e",
+    "employer_org": "922436096",
+    "title": "VAKT",
+    "posted": "2026-10-02T01:18:42+02:00",
+    "expires": "2026-12-31T00:00:00+01:00",
+    "source_sha256": "d06d836c33f5da1ccc3bfb90e358fd804d3fa3216d96307b320e59540efd8cca",
+    "bridge_sha256": "533b3b002ea10c27ece983dac5695021dcfe7d0bc19d7ef42b1b52880ac1a5db",
+    "description_sha256": "7e45769522fe4b601403b67ce451b8af5b8199521a8ef70342ce9acc6de8615e",
+    "positive_families": [
+      "jobs_dated_activity"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "996858626",
+    "name": "NOFENCE AS",
+    "posting_id": "c484ee96-4b22-48b5-96c2-70b07f69ac34",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/c484ee96-4b22-48b5-96c2-70b07f69ac34",
+    "employer_org": "830655972",
+    "title": "Industrial Designer",
+    "posted": "2026-10-01T00:02:03.405+02:00",
+    "expires": "2027-04-01T00:00:00+02:00",
+    "source_sha256": "d204ab65e7ded9509bfe97dd55963cbc2fafbd60c9f6f270f6fa9f01b9b11fe4",
+    "bridge_sha256": "3eed06cb2629edf07aee4532b35cbc7f3a550f411b8dbedf13cf6bbe16028225",
+    "description_sha256": "1f097f78322919ec0ae8ad2c6fe38e08574681c135476361991c82765014ffbc",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "916503555",
+    "name": "EKSTRALYS AS",
+    "posting_id": "711627ec-af9b-46dd-b1cd-fb949254ae36",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/711627ec-af9b-46dd-b1cd-fb949254ae36",
+    "employer_org": "987938900",
+    "title": "Salgs- og driftsleder – en sentral lederrolle i Ekstralys",
+    "posted": "2026-10-02T06:00:00+02:00",
+    "expires": "2027-01-30T00:00:00+01:00",
+    "source_sha256": "195f4836117289ff96f86f8ab46dcbfb75d623c7720b5ce51065ec3c8611fde9",
+    "bridge_sha256": "307d8c823b713e2ac36e7d0ada06bb52ae58a6fb5e1153031c6e9421e3d24bf3",
+    "description_sha256": "6b55f41e9afd86acc81b085a478b8fba0d982039a85419922ecc5d0b2683dedb",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "933001822",
+    "name": "ARKEN BISTRO AS",
+    "posting_id": "048514eb-99c2-4933-a015-0b017d9d3194",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/048514eb-99c2-4933-a015-0b017d9d3194",
+    "employer_org": "933213730",
+    "title": "Kjøkkenassistent - Annenhver helg - Skibotn",
+    "posted": "2026-10-02T06:31:26+02:00",
+    "expires": "2026-10-23T00:00:00+02:00",
+    "source_sha256": "d12894ea1532db7897332443ee62fb266f76c21437211d927ee1c2387e95d6da",
+    "bridge_sha256": "d7abcfbed986613d5a212a42ec14ba2c261681826f797a980e531aeffab3d0e7",
+    "description_sha256": "cb07fef7579230bed81815c3ed2f5aa0629315780b4b3d9f2de91ae11a880b1e",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "988168440",
+    "name": "FREMOGRUPPEN AS",
+    "posting_id": "bb7128de-436a-41db-9434-95ae0790d458",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/bb7128de-436a-41db-9434-95ae0790d458",
+    "employer_org": "988110094",
+    "title": "Vi søker REGNSKAPSMEDARBEIDER!",
+    "posted": "2026-10-01T00:00:01+02:00",
+    "expires": "2026-10-31T23:59:59+01:00",
+    "source_sha256": "6c41e79ef35d24f1fa7f3f983cdbff8c5e8b338100c546c04b0564e5d1464263",
+    "bridge_sha256": "1b6e006e33e6323edc7b39532152a38295dd3e24b00643a1ef9ff3ade914cd78",
+    "description_sha256": "988918ebb7b623bbb08cdc753b6429adbfd20e0b499a53686b92e4d9d1a5933e",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "977075173",
+    "name": "SAFE24 DA",
+    "posting_id": "f77c8494-d14f-47a4-87c8-1f665efd0abd",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/f77c8494-d14f-47a4-87c8-1f665efd0abd",
+    "employer_org": "977076897",
+    "title": "SAFE24 søker vektere til stasjonært vaktoppdrag nær Vanylven",
+    "posted": "2026-09-30T11:04:18+02:00",
+    "expires": "2026-11-30T00:00:00+01:00",
+    "source_sha256": "9a63c29619c72a88c46bdfe55cb064c418ab736d15416bfbe300d487a57a3e07",
+    "bridge_sha256": "4424f1155603a9234bddfc656a8588de2e0bbbd928f6ca846e22132c665850bd",
+    "description_sha256": "0ba78cbbeca4be34cd9a0c9bd1f38a92170361497751851419fe1d223b44fae8",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "912423921",
+    "name": "TIDE AS",
+    "posting_id": "b65f97ee-1e22-412c-ad92-e0ea4b655f70",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/b65f97ee-1e22-412c-ad92-e0ea4b655f70",
+    "employer_org": "983235824",
+    "title": "Markedsfører - Employer Branding",
+    "posted": "2026-10-01T10:36:22+02:00",
+    "expires": "2026-10-15T21:59:59+02:00",
+    "source_sha256": "75e1227fb0944ea5ff959f0930f9a391e31794cecf5de29155b6014bf63f84f8",
+    "bridge_sha256": "4890ad488ec0042688c77f22b8db762b6b61634bbfe91cefae6b0599e777999e",
+    "description_sha256": "f7e7a2e6f38110586fdcb2508ff83c8d6a8526015b0241268105fe1c2187d7a1",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "994480855",
+    "name": "BERGEN PERSONAL AS",
+    "posting_id": "5e2c93c2-9762-4fed-b79e-a152b5e7ab78",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/5e2c93c2-9762-4fed-b79e-a152b5e7ab78",
+    "employer_org": "994495062",
+    "title": "Stillasbygger - BERGEN",
+    "posted": "2026-10-01T14:59:06.452396+02:00",
+    "expires": "2026-10-31T00:00:00+01:00",
+    "source_sha256": "0f2eecbf12612ffd5ac28f11b5a04266d49f0d2c0dacd5203a1a84f4f8b5d4fb",
+    "bridge_sha256": "bf135bffb9837fd6a8bb81cafee9b0f2cab7946ca7312fc112258f61099187e2",
+    "description_sha256": "f8ba2dfa782d3b66eb71d83ed53799a7a7d47d1aadf1b934d01501dfeb89caa1",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  },
+  {
+    "organisation_number": "919025557",
+    "name": "WRK BEMANNING AS",
+    "posting_id": "cbf96b88-05f3-4df3-a158-0a6bfd5b8951",
+    "source_url": "https://pam-stilling-feed.nav.no/api/v1/feedentry/cbf96b88-05f3-4df3-a158-0a6bfd5b8951",
+    "employer_org": "919053348",
+    "title": "Trygge voksne ønskes til nattevakt på barnevernsinstitusjon",
+    "posted": "2026-10-01T00:00:01+02:00",
+    "expires": "2026-10-12T00:00:00+02:00",
+    "source_sha256": "06108e12fbe0dddfcfcf592d52114cef833dd635f3d01bfab21886fb798a36b2",
+    "bridge_sha256": "b89fc47b4d95c7d6ea1a34abe39871ae284c75912511495437c1f73f1e9555bc",
+    "description_sha256": "a15d3fe345e40ab9b4ab1651c7fea159553a172da4372ce67ba10cb3e7907fea",
+    "positive_families": [
+      "jobs_dated_activity",
+      "business_products"
+    ],
+    "reference_basis": "NAV ACTIVE posting with exact official employer-subunit bridge; descriptive company context reviewed separately from maker extraction"
+  }
+]

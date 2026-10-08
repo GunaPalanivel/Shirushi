@@ -1,6 +1,8 @@
 """One permitted discovery adapter. Search text is never retained or published."""
 import os
+import json
 import re
+import threading
 from urllib.parse import urlencode, urlsplit
 
 from .contracts import load, loads, timestamp
@@ -16,8 +18,10 @@ def access_receipt(path):
     required = {'provider', 'terms_url', 'plan_rights_source', 'reviewed_at',
                 'permits_company_discovery_and_evaluation', 'request_interval_seconds',
                 'max_candidates', 'max_queries_per_company'}
-    if (not isinstance(receipt, dict) or set(receipt) != required or receipt['provider'] != 'brave'
-            or receipt['terms_url'] != 'https://api-dashboard.search.brave.com/documentation/resources/terms-of-service'
+    terms = {'brave': 'https://api-dashboard.search.brave.com/documentation/resources/terms-of-service',
+             'anysearch': 'https://anysearch.com/docs/auth'}
+    if (not isinstance(receipt, dict) or set(receipt) != required or receipt.get('provider') not in terms
+            or receipt['terms_url'] != terms[receipt['provider']]
             or not isinstance(receipt['plan_rights_source'], str) or not receipt['plan_rights_source'].strip()
             or receipt['permits_company_discovery_and_evaluation'] is not True
             or type(receipt['request_interval_seconds']) not in (int, float)
@@ -37,7 +41,7 @@ class BraveDiscovery:
             raise SourceUnavailable('BRAVE_SEARCH_API_KEY is unavailable', 'blocked')
         fetcher.budget.set_host_interval('api.search.brave.com', receipt['request_interval_seconds'])
 
-    def candidates(self, subject):
+    def candidates(self, subject, entity=None):
         if re.fullmatch('[0-9]{9}', subject) is None:
             raise ValueError('Exact organisation number required')
         queries = ['"' + subject + '"', '"' + ' '.join(subject[i:i+3] for i in range(0, 9, 3)) + '"']
@@ -62,3 +66,69 @@ class BraveDiscovery:
                 if len(candidates) >= self.receipt['max_candidates']:
                     return candidates
         return candidates
+
+
+class AnySearchDiscovery:
+    """Documented anonymous discovery; source bodies remain the only evidence."""
+    def __init__(self, fetcher, receipt):
+        self.fetcher, self.receipt = fetcher, receipt
+        self.error, self.lock = None, threading.Lock()
+        fetcher.budget.set_host_interval('api.anysearch.com', receipt['request_interval_seconds'])
+
+    def candidates(self, subject, entity=None):
+        while not self.lock.acquire(timeout=0.05):
+            self.fetcher.budget.remaining()
+        try:
+            if self.error:
+                raise SourceUnavailable(self.error, 'blocked')
+            return self._candidates(subject, entity)
+        except SourceUnavailable as exc:
+            if exc.availability == 'blocked':
+                self.error = 'Anonymous discovery unavailable: ' + str(exc)
+            raise
+        finally:
+            self.lock.release()
+
+    def _candidates(self, subject, entity=None):
+        if re.fullmatch('[0-9]{9}', subject) is None:
+            raise ValueError('Exact organisation number required')
+        name = (entity or {}).get('navn', '')
+        spaced = ' '.join(subject[i:i+3] for i in range(0, 9, 3))
+        queries = (['"' + name + '" official website Norway', '"' + name + '" "' + spaced + '"'] if name
+                   else ['"' + subject + '" website', '"' + subject + '"'])
+        candidates, hosts = [], set()
+        directories = {'proff.no', 'purehelp.no', 'virksomhet.brreg.no', 'firmalisten.no', 'firmadatabasen.no',
+                       'regnskapsbasen.no', 'biztrac.no', 'soom.no', 'gulesider.no', '1881.no',
+                       'tracxn.com', 'yra.no', 'vexter.no', 'facebook.com', 'linkedin.com'}
+        for query in queries[:self.receipt['max_queries_per_company']]:
+            payload = json.dumps({'query': query, 'max_results': 10, 'zone': 'intl', 'format': 'json'}).encode()
+            raw, _ = self.fetcher.get('https://api.anysearch.com/v1/search', {'api.anysearch.com'}, request_body=payload)
+            body = loads(raw)
+            if body.get('code') != 0:
+                raise SourceUnavailable('Anonymous discovery quota or provider error', 'blocked')
+            results = body.get('data', {}).get('results', [])
+            if not isinstance(results, list):
+                raise SourceUnavailable('Invalid discovery response')
+            for row in results[:10]:
+                try:
+                    url = safe_url(row.get('url')); host = urlsplit(url).hostname
+                except (ValueError, AttributeError):
+                    continue
+                if (any(host == domain or host.endswith('.' + domain) for domain in directories)
+                        or re.search(r'\.(?:pdf|jpg|jpeg|png|zip)$', urlsplit(url).path, re.I)):
+                    continue
+                if host in hosts:
+                    # A later exact-org query often returns an unlinked legal
+                    # page on a host already found by its company name.
+                    if re.search(r'vilk|terms|legal|jurid', urlsplit(url).path, re.I):
+                        index = next(i for i, old in enumerate(candidates) if urlsplit(old).hostname == host)
+                        candidates[index] = url
+                    continue
+                candidates.append(url); hosts.add(host)
+        words = [word for word in re.findall(r'\w+', name.casefold()) if len(word) >= 3 and word not in {'as', 'asa'}]
+        def rank(url):
+            parts = urlsplit(url)
+            return (not any(word in parts.hostname.casefold() for word in words),
+                    not bool(re.search(r'vilk|terms|legal|jurid', parts.path, re.I)))
+        candidates.sort(key=rank)
+        return candidates[:self.receipt['max_candidates']]

@@ -85,7 +85,7 @@ def main(argv=None):
         if args.live:
             if (config['mode'] != 'local' or not config['network_enabled']
                     or 'brreg_entity' not in config['enabled_sources']
-                    or set(config['enabled_sources']) - {'brreg_entity', 'brreg_roles', 'brreg_accounts', 'brreg_subunits', 'company_owned'}):
+                    or set(config['enabled_sources']) - {'brreg_entity', 'brreg_roles', 'brreg_accounts', 'brreg_subunits', 'company_owned', 'nav_jobs'}):
                 raise ValueError('Live runner requires explicitly enabled local source routes; official wire adapter remains unconfirmed')
             if args.registry or args.registry_receipt or args.source_manifest:
                 raise ValueError('Live and offline acquisition inputs cannot be mixed')
@@ -107,10 +107,10 @@ def main(argv=None):
                 raise ValueError('Discovery requires the live company-owned route')
             from .discovery import access_receipt, COST_PER_ATTEMPT_USD
             discovery = access_receipt(args.discovery_access_receipt)
-            if config['third_party_cost_usd'] < COST_PER_ATTEMPT_USD:
+            if discovery['provider'] == 'brave' and config['third_party_cost_usd'] < COST_PER_ATTEMPT_USD:
                 raise ValueError('Discovery requires a declared paid-attempt budget')
             import os
-            if not os.environ.get('BRAVE_SEARCH_API_KEY'):
+            if discovery['provider'] == 'brave' and not os.environ.get('BRAVE_SEARCH_API_KEY'):
                 raise ValueError('BRAVE_SEARCH_API_KEY is unavailable')
             report['discovery_access_receipt'] = discovery
         sources = []

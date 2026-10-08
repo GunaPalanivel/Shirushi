@@ -49,7 +49,7 @@
         "terms_and_robots_receipt",
         "safe_fetcher"
       ],
-      "scope": "Registry URLs are leads; exact JSON-LD subjects or explicit legal operator HTML evidence with separately attributed content. Discovery optionally uses one access-receipted Brave API; snippets are never evidence.",
+      "scope": "Registry and API URLs are leads; exact JSON-LD subjects or explicit legal operator evidence with separately attributed content. Scoped catalogue offers require seller-contract identity and matching locale. Search snippets never become evidence.",
       "rate_policy": "Configured per-host spacing and bounded pages; no authenticated or blocked-source bypass"
     },
     {
@@ -67,7 +67,7 @@
       "id": "search_api",
       "status": "conditional",
       "network": true,
-      "basis": "One implemented Brave API adapter; activation requires declared account rate, paid budget, credential and plan-rights receipt. Transient URLs only; no stored snippets.",
+      "basis": "Brave with account-rights receipt or documented anonymous AnySearch discovery with explicit receipt and bounded queries; provider quota failure is reported, never bypassed.",
       "scope": "Discovery only; snippets never publication evidence"
     },
     {
@@ -78,9 +78,12 @@
     },
     {
       "id": "nav_jobs",
-      "status": "disabled",
+      "status": "enabled",
       "network": true,
-      "basis": "Access credentials and permitted method not established"
+      "basis": "NAV documented public experimental token and feed API; exact BRREG employer-subunit bridge required",
+      "terms_url": "https://arbeidsplassen.nav.no/vilkar-api",
+      "scope": "Active dated postings and explicit employer descriptions only; no job-description inference, contact extraction or absence claims from truncated feeds",
+      "rate_policy": "One shared seven-day window, at most two feed pages per run and three employer-matched details per company, subject to global ledger and host spacing"
     },
     {
       "id": "patents_procurement",

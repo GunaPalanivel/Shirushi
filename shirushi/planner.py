@@ -1,6 +1,7 @@
 """Empirical route selection; unknown sources receive bounded exploration."""
 ROUTE_FAMILIES = {'brreg_roles': {'people'}, 'brreg_accounts': {'financials_history'},
                   'brreg_subunits': {'operating_locations'},
+                  'nav_jobs': {'business_products', 'jobs_dated_activity'},
                   'company_owned': {'business_products', 'website_owned_profiles', 'jobs_dated_activity'}}
 
 

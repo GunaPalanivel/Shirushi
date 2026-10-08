@@ -1,16 +1,217 @@
 {
   "seed": 20261007,
-  "algorithm": "five-way-largest-remainder-host-representative-v1",
+  "algorithm": "employee-website-largest-remainder-host-representative-v2",
   "population": 411160,
   "selected": 500,
-  "registry_sha256": "1c89710e5b01f8617e86d09fbdff4a52f2f8dbbba297e74f7164b5984f5a0384",
-  "development_sha256": "f0e6d0aad86e2c31c32bea6ae3946bae0f74f326ec3190619d50a10b9d417a2f",
-  "validation_sha256": "3565e1d1717655fe64ab2bb97dddf8b5a88468e6b6b3cfb2cfd2f0ca727dd9c5",
   "known_corporate_groups_available": false,
   "host_group_policy": "One representative per known registered host; ownership is not inferred.",
-  "scope": "Development fixtures only; never selects official inputs",
-  "development_count": 100,
-  "validation_count": 100,
-  "reference_labels_complete": false,
-  "official_score": null
+  "strata": [
+    {
+      "key": [
+        "0_unknown",
+        "absent"
+      ],
+      "population": 321271,
+      "quota": 391,
+      "selected": 391
+    },
+    {
+      "key": [
+        "0_unknown",
+        "present"
+      ],
+      "population": 30068,
+      "quota": 37,
+      "selected": 37
+    },
+    {
+      "key": [
+        "10_49",
+        "absent"
+      ],
+      "population": 21911,
+      "quota": 27,
+      "selected": 27
+    },
+    {
+      "key": [
+        "10_49",
+        "present"
+      ],
+      "population": 7774,
+      "quota": 9,
+      "selected": 9
+    },
+    {
+      "key": [
+        "1_9",
+        "absent"
+      ],
+      "population": 19895,
+      "quota": 24,
+      "selected": 24
+    },
+    {
+      "key": [
+        "1_9",
+        "present"
+      ],
+      "population": 4374,
+      "quota": 5,
+      "selected": 5
+    },
+    {
+      "key": [
+        "50_plus",
+        "absent"
+      ],
+      "population": 3229,
+      "quota": 4,
+      "selected": 4
+    },
+    {
+      "key": [
+        "50_plus",
+        "present"
+      ],
+      "population": 2638,
+      "quota": 3,
+      "selected": 3
+    }
+  ],
+  "registry_sha256": "1c89710e5b01f8617e86d09fbdff4a52f2f8dbbba297e74f7164b5984f5a0384",
+  "registry_receipt_sha256": "f295c13eebafd84969787c7e295848ad76bc11f13700db268c57d668cdfaedbe",
+  "splits": {
+    "development": 100,
+    "validation": 100,
+    "final": 300,
+    "pilot_is_first_development": 20
+  },
+  "development_sha256": "6978b4156ea3da88b9cf575d48349137da9d8c0e77a40a01f206ff780526675d",
+  "validation_sha256": "40209dbc4f5be10e79935bf1debcf859ac828b9a8f108bc08dae5dd1bb39183d",
+  "final_sha256": "ec7a8201ff4d5422eda67794ab36fa88c591b38e3a0dc6af80e58c5d3bdca666",
+  "pilot_sha256": "15028b994fbab435ace3508bc623b427a380c4833047915fd5ac58e088a25d21",
+  "cohort_marginals": {
+    "development": {
+      "companies": 100,
+      "employers": 15,
+      "registered_website_hints": 11,
+      "large_employers": 2,
+      "strata": [
+        {
+          "key": [
+            "0_unknown",
+            "absent"
+          ],
+          "count": 78
+        },
+        {
+          "key": [
+            "0_unknown",
+            "present"
+          ],
+          "count": 7
+        },
+        {
+          "key": [
+            "10_49",
+            "absent"
+          ],
+          "count": 5
+        },
+        {
+          "key": [
+            "10_49",
+            "present"
+          ],
+          "count": 2
+        },
+        {
+          "key": [
+            "1_9",
+            "absent"
+          ],
+          "count": 5
+        },
+        {
+          "key": [
+            "1_9",
+            "present"
+          ],
+          "count": 1
+        },
+        {
+          "key": [
+            "50_plus",
+            "absent"
+          ],
+          "count": 1
+        },
+        {
+          "key": [
+            "50_plus",
+            "present"
+          ],
+          "count": 1
+        }
+      ]
+    },
+    "validation": {
+      "companies": 100,
+      "employers": 14,
+      "registered_website_hints": 11,
+      "large_employers": 1,
+      "strata": [
+        {
+          "key": [
+            "0_unknown",
+            "absent"
+          ],
+          "count": 78
+        },
+        {
+          "key": [
+            "0_unknown",
+            "present"
+          ],
+          "count": 8
+        },
+        {
+          "key": [
+            "10_49",
+            "absent"
+          ],
+          "count": 5
+        },
+        {
+          "key": [
+            "10_49",
+            "present"
+          ],
+          "count": 2
+        },
+        {
+          "key": [
+            "1_9",
+            "absent"
+          ],
+          "count": 5
+        },
+        {
+          "key": [
+            "1_9",
+            "present"
+          ],
+          "count": 1
+        },
+        {
+          "key": [
+            "50_plus",
+            "absent"
+          ],
+          "count": 1
+        }
+      ]
+    }
+  }
 }

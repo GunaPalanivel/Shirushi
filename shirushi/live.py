@@ -1,5 +1,6 @@
 """Breadth-first, supervised live acquisition using the local envelope contract."""
 import time
+import re
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty, SimpleQueue
 from collections import defaultdict
@@ -10,13 +11,100 @@ from .batch import envelope
 from .claims import claim_id, slot
 from .contracts import loads, timestamp
 from .extraction import Candidate
-from .discovery import BraveDiscovery
+from .discovery import AnySearchDiscovery, BraveDiscovery
 from .html_sources import operator_proof
 from .fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, safe_url, website_candidate, website_hosts
 from .planner import Planner, ROUTE_FAMILIES
 from .roles import check_role, propose_roles
 from .snapshots import SnapshotStore, digest
 from .web_sources import check_web, page_links
+from .nav_jobs import NavFeed, check_nav
+
+
+def acquire_website(fetcher, subject, entity, discovery, max_pages):
+    """Follow legal/contact leads before rejecting a site; bound all candidate pages."""
+    pages, failures, seen = [], [], set()
+    funnel = {'candidate_domains': 0, 'candidate_pages_retrieved': 0, 'candidate_identity_rejections': 0}
+    declared = entity.get('hjemmeside')
+    candidates = []
+    if declared:
+        try:
+            candidates.append(website_candidate(declared))
+        except SourceUnavailable as exc:
+            failures.append({'reason': str(exc), 'availability': exc.availability})
+
+    def retrieve(url, hosts):
+        if len(seen) >= max_pages or url in seen:
+            return None
+        seen.add(url)
+        try:
+            page = fetcher.get(url, hosts, robots=True)
+            funnel['candidate_pages_retrieved'] += 1
+            return page
+        except SourceUnavailable as exc:
+            failures.append({'url': url, 'reason': str(exc), 'availability': exc.availability})
+            return None
+
+    # One declared candidate first; search also runs when that lead cannot be
+    # legally attributed. Transient candidate text never becomes evidence.
+    for phase in range(2):
+        if phase:
+            if not discovery or len(seen) >= max_pages:
+                break
+            try:
+                candidates = discovery.candidates(subject, entity)
+            except SourceUnavailable as exc:
+                failures.append({'reason': str(exc), 'availability': exc.availability})
+                break
+        for candidate in candidates:
+            funnel['candidate_domains'] += 1
+            root = retrieve(candidate, website_hosts(urlsplit(candidate).hostname))
+            if root is None:
+                continue
+            local = [root]
+            url = root[1]['effective_url']
+            host = {urlsplit(url).hostname}
+            links = page_links(root[0], url)
+            owner = root if operator_proof(root[0], subject, entity['navn']) else None
+            if owner is None:
+                identity_links = [link for link in links if re.search(
+                    r'legal|jurid|terms|vilk|imprint|kontakt|contact|about|om-oss', urlsplit(link).path, re.I)]
+                for _ in range(2):
+                    if not identity_links:
+                        break
+                    link = identity_links.pop(0)
+                    page = retrieve(link, host)
+                    if page:
+                        local.append(page)
+                        if operator_proof(page[0], subject, entity['navn']):
+                            owner = page
+                            break
+                        identity_links = [child for child in page_links(page[0], page[1]['effective_url'])
+                                          if child not in seen and re.search(r'legal|jurid|terms|vilk|imprint',
+                                                                            urlsplit(child).path, re.I)] + identity_links
+            if owner is None:
+                funnel['candidate_identity_rejections'] += 1
+                failures.append({'url': url, 'reason': 'No exact legal operator proof', 'availability': 'ambiguous'})
+                # A registry lead can still carry exact-identifier JSON-LD.
+                if phase == 0:
+                    pages.extend(local)
+                continue
+            proof = operator_proof(owner[0], subject, entity['navn'])
+            prefix = (urlsplit(owner[1]['effective_url']).path.rsplit('/', 1)[0] + '/'
+                      if proof['kind'] == 'seller_terms' else '/')
+            scoped_home = 'https://' + next(iter(host)) + prefix
+            # Persist ownership first, then independently check content pages.
+            local = [owner] + [page for page in local if page is not owner
+                              and urlsplit(page[1]['effective_url']).path.startswith(prefix)]
+            content_links = [scoped_home] + links + page_links(owner[0], owner[1]['effective_url'])
+            for link in dict.fromkeys(content_links):
+                if not urlsplit(link).path.startswith(prefix):
+                    continue
+                page = retrieve(link, host)
+                if page:
+                    local.append(page)
+            return local, failures, funnel
+    return pages, failures, funnel
 
 
 def unique_decisions(decisions):
@@ -66,6 +154,9 @@ def verify_previous(store, prior, subject):
             if item['source_class'] == 'company_owned':
                 decisions = check_web(store, subject, item['snapshot_id'])
                 decision = next((d for d in decisions if slot(d['claim']) == slot(claim)), None)
+            elif item['source_class'] == 'nav_jobs':
+                decisions = check_nav(store, subject, item['snapshot_id'])
+                decision = next((d for d in decisions if slot(d['claim']) == slot(claim)), None)
             elif item['source_class'] == 'brreg_roles_snapshot':
                 decision = check_role(store, Candidate(subject, claim['field'], claim['value'],
                                                       item['snapshot_id'], item['locator']), subject)
@@ -89,7 +180,9 @@ def worker(connection, job):
     budget = Budget(job['config'], job['deadline'], events.put)
     pool = ThreadPoolExecutor(max_workers=job['config']['workers'], thread_name_prefix='shirushi-io')
     fetcher, planner = Fetcher(budget), Planner(job['config']['routing_policy'])
-    discovery = BraveDiscovery(fetcher, job['discovery']) if job.get('discovery') else None
+    discovery = ((AnySearchDiscovery if job['discovery'].get('provider') == 'anysearch' else BraveDiscovery)
+                 (fetcher, job['discovery']) if job.get('discovery') else None)
+    nav = NavFeed(fetcher) if 'nav_jobs' in job['config']['enabled_sources'] else None
     subjects, previous = job['subjects'], job['previous']
     states = {s: {'decisions': [], 'attempts': [], 'entity': None, 'failure': None} for s in subjects}
     try:
@@ -121,39 +214,12 @@ def worker(connection, job):
             funnel = {'candidate_domains': 0, 'candidate_pages_retrieved': 0, 'candidate_identity_rejections': 0}
             try:
                 if route == 'company_owned':
-                    declared = (entity or {}).get('hjemmeside')
-                    candidates = ([website_candidate(declared)] if declared else [])
-                    if not candidates and discovery:
-                        candidates = discovery.candidates(subject)
-                    if not candidates:
-                        raise SourceUnavailable('No website discovery candidate', 'not_available')
-                    funnel['candidate_domains'] = len(candidates)
-                    root = None
-                    # Candidate bodies are transient until explicit legal operator
-                    # proof; registry leads preserve the earlier JSON-LD checker.
-                    for candidate in candidates:
-                        try:
-                            raw, receipt = fetcher.get(candidate, website_hosts(urlsplit(candidate).hostname), robots=True)
-                            funnel['candidate_pages_retrieved'] += 1
-                            if not declared and not operator_proof(raw, subject, entity.get('navn', '')):
-                                funnel['candidate_identity_rejections'] += 1
-                                failures.append({'reason': 'No exact legal operator proof',
-                                                 'availability': 'ambiguous'})
-                                continue
-                            root = (raw, receipt)
-                            break
-                        except SourceUnavailable as exc:
-                            failures.append({'reason': str(exc), 'availability': exc.availability})
-                    if root is None:
-                        raise SourceUnavailable('No verified website candidate', 'not_available')
-                    pages.append(root)
-                    url = root[1]['effective_url']
-                    hosts = {urlsplit(url).hostname}
-                    for link in page_links(root[0], url)[:job['config']['max_pages_per_company'] - 1]:
-                        try:
-                            pages.append(fetcher.get(link, hosts, robots=True))
-                        except SourceUnavailable as exc:
-                            failures.append({'url': link, 'reason': str(exc), 'availability': exc.availability})
+                    pages, failures, funnel = acquire_website(fetcher, subject, entity, discovery,
+                                                              job['config']['max_pages_per_company'])
+                    if not pages:
+                        raise SourceUnavailable('No legally attributable website candidate', 'not_available')
+                elif route == 'nav_jobs':
+                    pages, failures = nav.for_company(subject, entity)
                 else:
                     url = (ENTITY + subject + '/roller' if route == 'brreg_roles' else
                            (ACCOUNTS if route == 'brreg_accounts' else SUBUNITS if route == 'brreg_subunits' else ENTITY) + subject)
@@ -198,7 +264,10 @@ def worker(connection, job):
             decisions = unique_decisions(state['decisions'])
             present = {slot(d.get('claim', d)) for d in decisions}
             decisions.extend({'field': c['field'], 'claim_id': slot(c), 'accepted': False,
-                              'reason': 'unobserved_in_current_sources'}
+                              'withdrawn': c['field'] == 'job_posting' or c.get('scope') == 'nav_verified_employer',
+                              'reason': 'current_active_posting_not_verified' if c['field'] == 'job_posting'
+                                        or c.get('scope') == 'nav_verified_employer'
+                                        else 'unobserved_in_current_sources'}
                              for c in (previous.get(subject) or {}).get('claims', [])
                              if slot(c) not in present and c['availability'] == 'available')
             prior = previous.get(subject)
@@ -264,16 +333,47 @@ def worker(connection, job):
                     url = (ACCOUNTS if route == 'brreg_accounts' else SUBUNITS) + subject
                     _, sid = snapshot(subject, route, url, {'data.brreg.no'})
                     state['decisions'].extend(check_api(store, c, subject) for c in propose_api(store, sid))
+                elif route == 'nav_jobs':
+                    report['feed_window'] = dict(nav.diagnostics)
+                    report['matched_employer_sources'] = len(available_pages)
+                    sid = None
+                    for raw, receipt, bridge_raw, bridge_receipt in available_pages:
+                        bridge = dict(bridge_receipt, organisation_number=subject, source_class='brreg_job_employer',
+                                      sha256=digest(bridge_raw), access_policy='brreg-open-data-nlod-2.0')
+                        bridge_sid = store.save(bridge_raw, bridge)
+                        sid = store.save(raw, dict(receipt, organisation_number=subject, source_class='nav_jobs',
+                            sha256=digest(raw), employer_snapshot_id=bridge_sid,
+                            legal_identity_snapshot_id=state['entity_sid'],
+                            access_policy='https://arbeidsplassen.nav.no/vilkar-api'))
+                        state['decisions'].extend(check_nav(store, subject, sid))
+                    available_pages.clear()
                 else:
                     url = available_pages[0][1]['source_url']
                     raw, sid = snapshot(subject, route, url, website_hosts(urlsplit(url).hostname), robots=True)
                     root_host = urlsplit(store.open(sid)[1]['effective_url']).hostname
-                    state['operator_sid'] = sid
-                    state['decisions'].extend(check_web(store, subject, sid))
+                    if operator_proof(raw, subject, state['entity']['navn']):
+                        state['operator_sid'] = sid
+                    try:
+                        checked = check_web(store, subject, sid)
+                        state['decisions'].extend(checked)
+                        report.setdefault('pages', []).append({'source_url': url, 'snapshot_id': sid,
+                            'content_sha256': digest(raw), 'effective_url': store.open(sid)[1]['effective_url'],
+                            'identity_proof': bool(operator_proof(raw, subject, state['entity']['navn'])),
+                            'supported_fields': sorted({d['field'] for d in checked})})
+                    except ValueError as exc:
+                        report.setdefault('page_failures', []).append({'url': url, 'reason': str(exc)})
                     while available_pages:
                         next_url = available_pages[0][1]['source_url']
-                        _, child = snapshot(subject, route, next_url, {root_host}, robots=True)
-                        state['decisions'].extend(check_web(store, subject, child))
+                        child_raw, child = snapshot(subject, route, next_url, {root_host}, robots=True)
+                        try:
+                            checked = check_web(store, subject, child)
+                            state['decisions'].extend(checked)
+                            report.setdefault('pages', []).append({'source_url': next_url, 'snapshot_id': child,
+                                'content_sha256': digest(child_raw), 'effective_url': store.open(child)[1]['effective_url'],
+                                'identity_proof': bool(operator_proof(child_raw, subject, state['entity']['navn'])),
+                                'supported_fields': sorted({d['field'] for d in checked})})
+                        except ValueError as exc:
+                            report.setdefault('page_failures', []).append({'url': next_url, 'reason': str(exc)})
                 report['snapshot_id'] = sid
                 if acquired['error']:
                     raise acquired['error']

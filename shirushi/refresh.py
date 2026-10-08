@@ -22,7 +22,15 @@ def merge(previous, decisions, observed_at):
         seen.add(identity)
         prior = old.pop(identity, None)
         if not decision['accepted']:
-            if prior and prior['availability'] == 'available':
+            if prior and prior['availability'] == 'available' and decision.get('withdrawn'):
+                history.append(prior)
+                claims.append({'field': field, 'claim_id': identity, 'value': None,
+                               'availability': 'not_available', 'reason': decision['reason'], 'evidence_ids': []})
+                changes.append({'field': field, 'claim_id': identity, 'kind': 'current_support_lost',
+                                'old_value': prior['value'], 'new_value': None,
+                                'old_evidence_ids': prior['evidence_ids'], 'new_evidence_ids': [],
+                                'observed_at': observed_at})
+            elif prior and prior['availability'] == 'available':
                 prior['freshness'] = 'stale_after_failed_observation'
                 prior['current_attempt_reason'] = decision['reason']
                 claims.append(prior)

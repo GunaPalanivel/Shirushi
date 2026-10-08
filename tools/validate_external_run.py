@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cohort', choices=['development', 'validation'], required=True)
     parser.add_argument('--output-dir', type=Path, required=True)
+    parser.add_argument('--discovery-access-receipt', type=Path)
     args = parser.parse_args()
     pool = ROOT / 'benchmarks/external-coverage'
     manifest = load(pool / 'manifest.json')
@@ -28,14 +29,16 @@ def main():
     directory = args.output_dir.resolve()
     directory.mkdir(parents=True, exist_ok=False)
     (directory / 'input.jsonl').write_bytes(raw)
-    config = load(ROOT / 'configs/local-live.json')
-    config.update(enabled_sources=['brreg_entity', 'company_owned'], request_budget=1000,
+    config = load(ROOT / 'configs/local-external.json')
+    config.update(request_budget=1000,
                   wall_time_seconds=1200, sample_size=len(inputs), routing_policy='fixed')
     (directory / 'config.json').write_text(json.dumps(config, indent=2) + '\n', encoding='utf-8')
     command = [sys.executable, '-X', 'dev', '-W', 'error', '-m', 'shirushi.run', '--live',
         '--organisations', str(directory / 'input.jsonl'), '--config', str(directory / 'config.json'),
         '--output', str(directory / 'envelopes.jsonl'), '--report', str(directory / 'report.json'),
         '--run-id', 'external-' + args.cohort]
+    if args.discovery_access_receipt:
+        command += ['--discovery-access-receipt', str(args.discovery_access_receipt)]
     process = subprocess.run(command, cwd=ROOT, check=False, timeout=1230)
     rows = read_envelopes(directory / 'envelopes.jsonl')
     report = load(directory / 'report.json')
@@ -51,7 +54,8 @@ def main():
             except (ValueError, OSError, KeyError, TypeError, IndexError) as exc:
                 unsupported.append({'organisation_number': row['organisation_number'], 'reason': str(exc)})
                 continue
-            if claim['availability'] != 'available' or claim['scope'] not in ('company_owned_html', 'company_owned_structured'):
+            if claim['availability'] != 'available' or claim['scope'] not in (
+                    'company_owned_html', 'company_owned_structured', 'company_owned_catalogue', 'nav_verified_employer'):
                 continue
             external_count += 1
             fields[claim['field']] = fields.get(claim['field'], 0) + 1
@@ -78,6 +82,9 @@ def main():
         'funnel': {key: sum(a.get('funnel', {}).get(key, 0) for a in attempts) for key in
             ['candidate_domains', 'candidate_pages_retrieved', 'candidate_identity_rejections', 'verified_website', 'supported_facts']},
         'failure_reasons': failure_reasons,
+        'page_diagnostics': [{'organisation_number': c['envelope']['organisation_number'],
+                             **a} for c in report['companies'] for a in c['attempts']
+                            if a['source'] in ('company_owned', 'nav_jobs')],
         'unsupported_publications': unsupported, 'operations': report['operations'], 'errors': errors,
         'artifact_binding': {k: report[k] for k in ['input_sha256', 'config_sha256', 'code_sha256', 'output_sha256']},
         'checker_sha256': digest(b''.join(p.name.encode() + p.read_bytes() for p in sorted((ROOT / 'shirushi_eval').glob('*.py')))),

@@ -37,9 +37,9 @@ def sample(rows, total=500, seed=20261007):
     counts = Counter()
     for row in rows:
         host = registered_host(row.get('website'))
-        key = (row.get('legal_form') or 'unknown', employee_band(row.get('employees')),
-               'present' if row.get('website') else 'absent',
-               str(row.get('industry_code') or 'unknown')[:2], str(row.get('municipality_number') or 'unknown'))
+        # Allocate before subdividing: 44k five-way cells for 500 slots rounded
+        # almost every employer cell to zero. Eight primary cells retain margins.
+        key = (employee_band(row.get('employees')), 'present' if host else 'absent')
         identity = row['organisation_number']
         rank = digest(f'{seed}:{identity}'.encode())
         strata[key].append((rank, identity, host))
@@ -80,7 +80,7 @@ def sample(rows, total=500, seed=20261007):
             raise ValueError('Insufficient independent registered host groups')
     selected.sort(key=lambda row: row['rank'])
     observed = Counter(tuple(row['stratum']) for row in selected)
-    return selected, {'seed': seed, 'algorithm': 'five-way-largest-remainder-host-representative-v1',
+    return selected, {'seed': seed, 'algorithm': 'employee-website-largest-remainder-host-representative-v2',
                       'population': population, 'selected': total, 'known_corporate_groups_available': False,
                       'host_group_policy': 'One representative per known registered host; ownership is not inferred.',
                       'group_exclusions': exclusions,
@@ -100,6 +100,24 @@ def main(argv=None):
     stream = gzip.GzipFile(fileobj=io.BytesIO(raw)) if compressed else io.BytesIO(raw)
     with stream:
         selected, manifest = sample(loads(line) for line in stream if line.strip())
+    # Stratify each split as well: a balanced 500-company pool does not make
+    # arbitrary contiguous 100-company slices representative.
+    remaining = defaultdict(list)
+    for row in selected:
+        remaining[tuple(row['stratum'])].append(row)
+    ordered = []
+    for size in (100, 100, 300):
+        population = sum(len(v) for v in remaining.values())
+        quotas = {k: size * len(v) // population for k, v in remaining.items()}
+        keys = sorted(remaining, key=lambda k: (-(size * len(remaining[k]) % population), k))
+        for key in keys[:size - sum(quotas.values())]:
+            quotas[key] += 1
+        group = []
+        for key in sorted(remaining):
+            group.extend(remaining[key][:quotas[key]])
+            del remaining[key][:quotas[key]]
+        ordered.extend(sorted(group, key=lambda row: row['rank']))
+    selected = ordered
     manifest['registry_sha256'] = receipt['sha256']
     manifest['registry_receipt_sha256'] = digest(args.receipt.read_bytes())
     manifest['splits'] = {'development': 100, 'validation': 100, 'final': 300, 'pilot_is_first_development': 20}

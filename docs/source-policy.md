@@ -1,3 +1,7 @@
+# Current activated live routes (8 October 2026)
+
+PR3 adds bounded owned-site legal traversal and seller-scoped catalogue extraction, optional access-receipted search discovery, and one shared NAV experimental feed window with an exact BRREG employer bridge. Search snippets, job duties and bare org-number mentions never become company facts. Current activation and bounds are in `configs/source-policy.json`; the historical bootstrap decisions below describe the earlier offline phase. See [PR3 evidence and gates](pr3-verified-external-coverage.md).
+
 # Source and reuse decisions
 
 The [source register](../configs/source-policy.json) separates source classes from activated adapters. The offline runner supports the frozen local registry and saved official roles. Network is disabled in all local configurations. Conditional live sources require access receipts and adapter checks before activation; this register is not a fetcher or an authorization bypass.

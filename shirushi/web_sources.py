@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlsplit
 
 from .claims import claim_id
 from .contracts import loads, timestamp
-from .html_sources import html_values, operator_proof
+from .html_sources import catalogue_values, html_values, operator_proof
 from .fetch import safe_url, website_candidate, website_hosts
 from .snapshots import digest
 
@@ -143,6 +143,11 @@ def check_web(store, subject, sid):
                   or urlsplit(ownership_receipt['effective_url']).hostname != receipt['declared_host']
                   or ownership_receipt.get('ownership_anchor_snapshot_id') != receipt['ownership_anchor_snapshot_id']):
         raise ValueError('Website legal operator proof mismatch')
+    seller_path = None
+    if proof and proof['kind'] == 'seller_terms':
+        seller_path = urlsplit(ownership_receipt['effective_url']).path.rsplit('/', 1)[0] + '/'
+        if not urlsplit(receipt['effective_url']).path.startswith(seller_path):
+            raise ValueError('Company page escapes the verified seller locale/path')
     if not registry_host and not proof:
         raise ValueError('Website discovery is not anchored to this company')
     cutoff = timestamp(receipt['retrieved_at']).date()
@@ -166,7 +171,7 @@ def check_web(store, subject, sid):
         values = list(html_values(raw, subject, legal_name, receipt['effective_url'], cutoff))
         if ownership_sid == sid:
             source = raw.decode('utf-8')
-            values.insert(0, ('verified_website', 'https://' + receipt['declared_host'] + '/',
+            values.insert(0, ('verified_website', 'https://' + receipt['declared_host'] + (seller_path or '/'),
                              'website_owned_profiles', None, source[proof['start']:proof['end']],
                              {'html_start': proof['start'], 'html_end': proof['end'], 'legal_name': legal_name,
                               'operator': True}))
@@ -181,6 +186,19 @@ def check_web(store, subject, sid):
                         'retrieved_at': receipt['retrieved_at'], 'content_sha256': digest(raw),
                         'claim_span': span, 'locator': locator, 'extraction_method': 'explicit_subject_html_v1'}
             decisions.append({'field': field, 'family': family, 'accepted': True, 'claim': claim, 'evidence': evidence})
+        if seller_path:
+            for field, value, family, item, span, locator in catalogue_values(raw, receipt['effective_url']):
+                if not urlsplit(value['source_url']).path.startswith(seller_path):
+                    continue
+                identity = claim_id(subject, field, 'company_owned_catalogue', item)
+                eid = sid + ':' + identity
+                claim = {'claim_id': identity, 'field': field, 'value': value, 'scope': 'company_owned_catalogue',
+                         'family': family, 'item_key': item, 'period': None, 'availability': 'available', 'evidence_ids': [eid]}
+                evidence = {'id': eid, 'snapshot_id': sid, 'source_url': receipt['effective_url'],
+                            'source_class': 'company_owned', 'source_origin': receipt['source_origin'],
+                            'retrieved_at': receipt['retrieved_at'], 'content_sha256': digest(raw),
+                            'claim_span': span, 'locator': locator, 'extraction_method': 'scoped_catalogue_html_v2'}
+                decisions.append({'field': field, 'family': family, 'accepted': True, 'claim': claim, 'evidence': evidence})
     return decisions
 
 
@@ -188,7 +206,7 @@ def page_links(raw, url):
     result = []
     for link in Page(raw).links:
         candidate = urljoin(url, link)
-        if not re.search(r'product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|about|om-oss|kontakt', candidate, re.I):
+        if not re.search(r'product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|about|om-oss|kontakt|vilk|terms|legal|jurid|imprint|aktuelt|rekrutter', candidate, re.I):
             continue
         try:
             candidate = safe_url(candidate, {urlsplit(url).hostname})
@@ -196,4 +214,10 @@ def page_links(raw, url):
             continue
         if candidate != url and candidate not in result:
             result.append(candidate)
-    return result
+    # Identity evidence first, then content, never DOM navigation order.
+    def priority(link):
+        path = urlsplit(link).path.lower()
+        return (0 if re.search(r'vilk|terms|legal|jurid|imprint', path) else
+                1 if re.search(r'produkt|product|service|tjenest', path) else
+                2 if re.search(r'job|career|stilling|rekrutter|news|nyhet|aktuelt', path) else 3)
+    return sorted(result, key=priority)

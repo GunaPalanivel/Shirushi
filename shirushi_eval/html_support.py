@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+from functools import lru_cache
 from datetime import date
 from html.parser import HTMLParser
 
@@ -11,12 +12,15 @@ class Document(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.source = raw.decode('utf-8')
         self.lines = self.source.split('\n')
+        self.offsets = [0]
+        for line in self.lines[:-1]:
+            self.offsets.append(self.offsets[-1] + len(line) + 1)
         self.parents, self.nodes = [], []
         self.feed(self.source)
 
     def source_position(self):
         line, col = self.getpos()
-        return sum(len(part) + 1 for part in self.lines[:line - 1]) + col
+        return self.offsets[line - 1] + col
 
     def handle_starttag(self, tag, attributes):
         attrs = dict(attributes)
@@ -27,7 +31,7 @@ class Document(HTMLParser):
         if tag in ('br', 'hr', 'img', 'input', 'meta', 'link', 'source', 'wbr', 'area', 'base', 'embed', 'param', 'track', 'col'):
             self.handle_data(' ')
             return
-        self.parents.append({'tag': tag, 'start': self.source_position(), 'text': '', 'hidden': hidden})
+        self.parents.append({'tag': tag, 'start': self.source_position(), 'text': '', 'hidden': hidden, 'attrs': attrs})
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -49,20 +53,36 @@ class Document(HTMLParser):
             self.nodes.append(node)
 
 
+@lru_cache(maxsize=4)
+def document(raw):
+    return Document(raw)
+
+
 def legal_operator(raw, subject, name):
-    for node in Document(raw).nodes:
+    for node in document(raw).nodes:
         if node['tag'] not in ('footer', 'address', 'p') or len(node['text']) > 1500 or not name:
             continue
         value = node['text']
         if not re.search(r'(?<!\w)' + re.escape(name) + r'(?!\w)', value, re.I):
             continue
-        numbers = re.findall(r'(?:org(?:anisasjons)?\.?\s*(?:nr|nummer)\.?|organi[sz]ation\s+number)\s*:?\s*(?:NO\s*)?([0-9]{3}[ .]?[0-9]{3}[ .]?[0-9]{3})(?![0-9])', value, re.I)
+        numbers = re.findall(r'(?:org(?:anisasjons)?\.?\s*(?:nr|nummer)\.?|organi[sz]ation\s+(?:number|no\.?))\s*:?\s*(?:NO\s*)?([0-9]{3}[ .]?[0-9]{3}[ .]?[0-9]{3})(?![0-9])', value, re.I)
         numbers = {re.sub(r'\D', '', number) for number in numbers}
         if numbers != {subject}:
             continue
-        if re.search(r'copyright|\u00a9|(?:website|site|nettsted).{0,40}(?:operated|owned|drives|eies)|utgiver', value, re.I):
+        if re.search(r'(?:copyright|\u00a9)\s*(?:[0-9]{4}[\s.,-]*)?(?:by\s+)?' + re.escape(name) + r'(?!\w)|'
+            r'(?:website|site|nettsted).{0,40}(?:operated|owned|drives|eies).{0,30}' + re.escape(name) + r'(?!\w)|'
+            r'utgiver\s*:?\s*' + re.escape(name) + r'(?!\w)', value, re.I):
+            return node
+        if seller_contract(value, name):
             return node
     return None
+
+
+def seller_contract(value, name):
+    return bool(re.search(r'\b(?:terms|conditions|vilk\u00e5r|avtale)\b', value, re.I)
+        and re.search(r'\b(?:customers?|purchase|orders?|seller|kund|kj\u00f8p|selger)\w*\b', value, re.I)
+        and re.search(r'\b(?:between|mellom)\s+' + re.escape(name) + r'(?!\w).{0,300}\b'
+            r'(?:and\s+(?:(?:their|its|our|the)\s+)?customers?|og\s+(?:(?:deres|v\u00e5re|sine)\s+)?kund\w*)\b', value, re.I))
 
 
 def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
@@ -73,17 +93,21 @@ def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
     if (type(location.get('html_start')) is not int or type(location.get('html_end')) is not int
             or location.get('legal_name') != legal_name):
         raise ValueError('Audit HTML locator mismatch')
-    document = Document(raw)
-    node = next((node for node in document.nodes if node['start'] == location['html_start']
+    page = document(raw)
+    node = next((node for node in page.nodes if node['start'] == location['html_start']
                  and node['end'] == location['html_end']), None)
-    if node is None or document.source[node['start']:node['end']] != item['claim_span']:
+    if node is None or page.source[node['start']:node['end']] != item['claim_span']:
         raise ValueError('Audit HTML span is hidden, malformed or misplaced')
     text = node['text']
     field = claim['field']
     if field == 'verified_website':
         if node != legal_operator(raw, subject, legal_name) or location.get('operator') is not True:
             raise ValueError('Audit website span lacks operator evidence')
-        expected = 'https://' + receipt['declared_host'] + '/'
+        path = '/'
+        if seller_contract(text, legal_name):
+            from urllib.parse import urlsplit
+            path = urlsplit(receipt['effective_url']).path.rsplit('/', 1)[0] + '/'
+        expected = 'https://' + receipt['declared_host'] + path
         family, key = 'website_owned_profiles', None
     else:
         if not 10 <= len(text) <= 2000 or not re.search(r'(?<!\w)' + re.escape(legal_name) + r'(?!\w)', text, re.I):
@@ -109,3 +133,33 @@ def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
             or claim.get('period') is not None or claim.get('scope') != 'company_owned_html'
             or claim.get('claim_id') != hashlib.sha256(encoded).hexdigest()):
         raise ValueError('Audit HTML value or canonical identity mismatch')
+
+
+def audit_catalogue(subject, claim, item, receipt, raw, legal_name, ownership_raw, ownership_receipt):
+    from urllib.parse import urljoin, urlsplit
+    owner = legal_operator(ownership_raw, subject, legal_name)
+    if owner is None or not seller_contract(owner['text'], legal_name):
+        raise ValueError('Catalogue lacks verified seller contract')
+    prefix = urlsplit(ownership_receipt['effective_url']).path.rsplit('/', 1)[0] + '/'
+    loc = item['locator']
+    page = document(raw)
+    node = next((n for n in page.nodes if n['start'] == loc.get('html_start') and n['end'] == loc.get('html_end')), None)
+    if node is None or node['tag'] != 'a' or loc.get('catalogue') is not True or page.source[node['start']:node['end']] != item['claim_span']:
+        raise ValueError('Catalogue source locator mismatch')
+    link = urljoin(receipt['effective_url'], node['attrs'].get('href', ''))
+    parts = urlsplit(link)
+    page = urlsplit(receipt['effective_url'])
+    if (parts.scheme != 'https' or parts.hostname != page.hostname or parts.username or parts.password
+            or parts.port not in (None, 443) or not page.path.startswith(prefix) or not parts.path.startswith(prefix)
+            or not re.search(r'/(?:products?|produkter)/[^/]+/?$', parts.path, re.I)
+            or not 4 <= len(node['text']) <= 200
+            or node['text'].lower() in {'products', 'produkter', 'les mer', 'read more', 'shop now'}):
+        raise ValueError('Catalogue link escapes seller scope')
+    link = parts._replace(fragment='').geturl()
+    value = {'name': node['text'], 'source_url': link}
+    encoded = json.dumps([subject, 'product_service', 'company_owned_catalogue', link, None], ensure_ascii=False,
+                         sort_keys=True, separators=(',', ':')).encode()
+    if (claim['field'] != 'product_service' or claim['value'] != value or claim.get('family') != 'business_products'
+            or claim.get('scope') != 'company_owned_catalogue' or claim.get('item_key') != link
+            or claim.get('period') is not None or claim['claim_id'] != hashlib.sha256(encoded).hexdigest()):
+        raise ValueError('Catalogue value or canonical identity mismatch')

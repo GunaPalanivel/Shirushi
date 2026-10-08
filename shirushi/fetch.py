@@ -223,15 +223,16 @@ class Fetcher:
         self.robots_condition = threading.Condition()
         self.robots_pending = set()
 
-    def _request(self, url, timeout, limit, request_headers=None):
+    def _request(self, url, timeout, limit, request_headers=None, request_body=None):
         parts = urlsplit(url)
         # Connect only to the validated address; TLS still verifies the hostname.
         address = public_addresses(parts.hostname)[0]
         connection = PinnedHTTPS(parts.hostname, address, timeout)
         try:
-            connection.request('GET', parts.path + ('?' + parts.query if parts.query else ''),
+            connection.request('POST' if request_body is not None else 'GET', parts.path + ('?' + parts.query if parts.query else ''), body=request_body,
                                headers={'User-Agent': USER_AGENT, 'Accept-Encoding': 'identity',
-                                        'Accept': 'application/json,text/html,text/plain', **(request_headers or {})})
+                                        'Accept': 'application/json,text/html,text/plain',
+                                        **({'Content-Type': 'application/json'} if request_body is not None else {}), **(request_headers or {})})
             response = connection.getresponse()
             headers = {k.lower(): v for k, v in response.getheaders()}
             chunks, total = [], 0
@@ -257,16 +258,22 @@ class Fetcher:
         finally:
             connection.close()
 
-    def get(self, url, allowed_hosts, robots=False, request_headers=None, cost=0.0):
+    def get(self, url, allowed_hosts, robots=False, request_headers=None, cost=0.0, request_body=None):
         url = safe_url(url, allowed_hosts)
         if request_headers is not None:
-            if (urlsplit(url).hostname != 'api.search.brave.com'
-                    or urlsplit(url).path != '/res/v1/web/search' or robots
-                    or set(request_headers) != {'X-Subscription-Token'}
-                    or not isinstance(request_headers['X-Subscription-Token'], str)
-                    or not re_token(request_headers['X-Subscription-Token'])
-                    or cost != BRAVE_REQUEST_COST_USD):
+            brave = (urlsplit(url).hostname == 'api.search.brave.com' and urlsplit(url).path == '/res/v1/web/search'
+                     and set(request_headers) == {'X-Subscription-Token'} and cost == BRAVE_REQUEST_COST_USD)
+            nav = (urlsplit(url).hostname == 'pam-stilling-feed.nav.no' and urlsplit(url).path.startswith('/api/v1/')
+                   and set(request_headers) <= {'Authorization', 'If-Modified-Since'} and 'Authorization' in request_headers
+                   and isinstance(request_headers['Authorization'], str)
+                   and request_headers['Authorization'].startswith('Bearer ') and cost == 0)
+            if (not (brave or nav) or robots or request_body is not None
+                    or any(not isinstance(v, str) or not re_token(v.replace(' ', '_')) for v in request_headers.values())):
                 raise SourceUnavailable('Authenticated request scope refused', 'blocked')
+        if request_body is not None and (urlsplit(url).hostname != 'api.anysearch.com'
+                or urlsplit(url).path != '/v1/search' or request_headers is not None or robots or cost != 0
+                or not isinstance(request_body, bytes) or len(request_body) > 8192):
+            raise SourceUnavailable('POST request scope refused', 'blocked')
         if robots:
             self.check_robots(url, allowed_hosts)
         original = url
@@ -277,7 +284,8 @@ class Fetcher:
             try:
                 with self.budget.request(urlsplit(url).hostname, cost) as timeout:
                     args = (url, timeout, limit)
-                    status, headers, raw = (self.transport(*args, request_headers) if request_headers is not None
+                    status, headers, raw = (self.transport(*args, None, request_body) if request_body is not None else
+                                           self.transport(*args, request_headers) if request_headers is not None
                                             else self.transport(*args))
                     if self.external_transport:
                         self.budget.consume(len(raw))
@@ -294,7 +302,7 @@ class Fetcher:
             if headers.get('content-encoding', 'identity').lower() not in ('', 'identity'):
                 raise SourceUnavailable('Unsupported compressed response')
             if status in (301, 302, 303, 307, 308):
-                if request_headers is not None:
+                if request_headers is not None or request_body is not None:
                     raise SourceUnavailable('Authenticated redirects refused', 'blocked')
                 if redirects >= 3 or not headers.get('location'):
                     raise SourceUnavailable('Redirect bound exceeded', 'blocked')

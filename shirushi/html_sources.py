@@ -5,7 +5,7 @@ from html.parser import HTMLParser
 
 from .snapshots import digest
 
-BLOCKS = {'p', 'section', 'article', 'footer', 'address', 'li'}
+BLOCKS = {'p', 'section', 'article', 'footer', 'address', 'li', 'a'}
 VOID = {'br', 'hr', 'img', 'input', 'meta', 'link', 'source', 'wbr', 'area', 'base', 'embed', 'param', 'track', 'col'}
 
 
@@ -32,7 +32,7 @@ class Sections(HTMLParser):
         if tag in VOID:
             self.handle_data(' ')
             return
-        self.stack.append({'tag': tag, 'start': self.position(), 'hidden': hidden, 'parts': []})
+        self.stack.append({'tag': tag, 'start': self.position(), 'hidden': hidden, 'parts': [], 'attrs': attrs})
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -51,7 +51,7 @@ class Sections(HTMLParser):
         if tag in BLOCKS and not block['hidden']:
             end = self.source.find('>', self.position())
             if end >= 0:
-                self.blocks.append(dict(tag=tag, start=block['start'], end=end + 1,
+                self.blocks.append(dict(tag=tag, start=block['start'], end=end + 1, attrs=block['attrs'],
                                         text=' '.join(''.join(block['parts']).split())))
 
 
@@ -61,18 +61,48 @@ def names(text, name):
 
 def org_numbers(text):
     # Explicit organisation-number labels; bare phone numbers cannot prove identity.
-    pattern = r'(?:org(?:anisasjons)?\.?\s*(?:nr|nummer)\.?|organisation\s+number|organization\s+number)\s*:?\s*(?:NO\s*)?([0-9]{3}[ .]?[0-9]{3}[ .]?[0-9]{3})(?![0-9])'
+    pattern = r'(?:org(?:anisasjons)?\.?\s*(?:nr|nummer)\.?|organi[sz]ation\s+(?:number|no\.?))\s*:?\s*(?:NO\s*)?([0-9]{3}[ .]?[0-9]{3}[ .]?[0-9]{3})(?![0-9])'
     return {re.sub(r'[^0-9]', '', value) for value in re.findall(pattern, text, re.I)}
 
 
 def operator_proof(raw, subject, legal_name):
     for block in Sections(raw).blocks:
         text = block['text']
-        operator = re.search(r'copyright|\u00a9|(?:website|site|nettsted).{0,40}(?:operated|owned|drives|eies)|utgiver', text, re.I)
-        if (block['tag'] in {'footer', 'p', 'address'} and operator and names(text, legal_name)
+        operator = re.search(r'(?:copyright|\u00a9)\s*(?:[0-9]{4}[\s.,-]*)?(?:by\s+)?' + re.escape(legal_name) + r'(?!\w)|'
+            r'(?:website|site|nettsted).{0,40}(?:operated|owned|drives|eies).{0,30}' + re.escape(legal_name) + r'(?!\w)|'
+            r'utgiver\s*:?\s*' + re.escape(legal_name) + r'(?!\w)', text, re.I)
+        seller = (re.search(r'\b(?:terms|conditions|vilk\u00e5r|avtale)\b', text, re.I)
+                  and re.search(r'\b(?:customers?|purchase|orders?|seller|kund|kj\u00f8p|selger)\w*\b', text, re.I)
+                  and re.search(r'\b(?:between|mellom)\s+' + re.escape(legal_name) + r'(?!\w).{0,300}\b'
+                      r'(?:and\s+(?:(?:their|its|our|the)\s+)?customers?|og\s+(?:(?:deres|v\u00e5re|sine)\s+)?kund\w*)\b', text, re.I))
+        if (block['tag'] in {'footer', 'p', 'address'} and (operator or seller) and names(text, legal_name)
                 and org_numbers(text) == {subject} and len(text) <= 1500):
-            return {k: block[k] for k in ('start', 'end', 'text')}
+            return dict({k: block[k] for k in ('start', 'end', 'text')}, kind='seller_terms' if seller else 'operator')
     return None
+
+
+def catalogue_values(raw, url):
+    """Literal linked offers, only used under a verified seller's path scope."""
+    from urllib.parse import urljoin, urlsplit
+    from .fetch import safe_url
+    seen = set()
+    for block in Sections(raw).blocks:
+        if block['tag'] != 'a' or not 4 <= len(block['text']) <= 200:
+            continue
+        try:
+            link = safe_url(urljoin(url, block['attrs'].get('href', '')), {urlsplit(url).hostname})
+        except ValueError:
+            continue
+        if not re.search(r'/(?:products?|produkter)/[^/]+/?$', urlsplit(link).path, re.I) or link in seen:
+            continue
+        if block['text'].lower() in {'products', 'produkter', 'les mer', 'read more', 'shop now'}:
+            continue
+        if len(seen) >= 10:
+            break  # Spend the remaining run budget on uncovered companies.
+        seen.add(link)
+        yield ('product_service', {'name': block['text'], 'source_url': link}, 'business_products', link,
+               raw.decode('utf-8')[block['start']:block['end']],
+               {'html_start': block['start'], 'html_end': block['end'], 'catalogue': True})
 
 
 def html_values(raw, subject, legal_name, url, cutoff):
