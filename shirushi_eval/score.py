@@ -28,8 +28,16 @@ def failure_stage(envelope, company_report, gold):
         return 'timing', 'deadline_or_budget_exhaustion'
     if any('absent from frozen registry' in e.get('reason', '').lower() for e in envelope.get('errors', [])):
         return 'identity', 'no_frozen_identity_anchor'
-    source = 'brreg_roles_snapshot' if gold['family'] == 'people' else 'brreg_accounts_snapshot'
-    attempts = [a for a in company_report.get('attempts', []) if a.get('source') == source]
+    routes = {'people': {'brreg_roles_snapshot', 'brreg_roles'},
+              'financials_history': {'brreg_accounts_snapshot', 'brreg_accounts'},
+              'business_products': {'company_owned', 'brreg_entity'},
+              'operating_locations': {'brreg_subunits', 'company_owned'},
+              'website_owned_profiles': {'company_owned', 'brreg_entity'},
+              'jobs_dated_activity': {'company_owned', 'nav_jobs', 'announcements'}}
+    if gold['family'] not in routes:
+        return 'unclassified', 'unknown_family_route'
+    sources = {gold['source_class']} if gold.get('source_class') else routes[gold['family']]
+    attempts = [a for a in company_report.get('attempts', []) if a.get('source') in sources]
     if not attempts:
         return 'discovery', 'source_route_not_scheduled'
     if any(a['status'] == 'failed' for a in attempts):
@@ -37,7 +45,9 @@ def failure_stage(envelope, company_report, gold):
     decisions = company_report.get('decisions', [])
     if any(d.get('accepted') and d.get('claim', {}).get('value') == gold['value'] for d in decisions):
         return 'output_loss', 'accepted_candidate_not_exported'
-    relevant = [d for d in decisions if not d.get('accepted') and str(d.get('field', '')).startswith('registered_role:')]
+    relevant = [d for d in decisions if not d.get('accepted') and
+                (d.get('family') == gold['family'] or d.get('field') == gold.get('field')
+                 or (gold['family'] == 'people' and str(d.get('field', '')).startswith('registered_role:')))]
     if relevant:
         if any('subject' in d.get('reason', '').lower() for d in relevant):
             return 'identity', 'candidate_subject_rejected'
@@ -76,7 +86,8 @@ def evaluate(subjects, envelopes, reference, report, store):
                 errors.append(subject + ': ' + str(exc))
         active = [c for c in envelope['claims'] if c['availability'] == 'available' and id(c) in verified]
         for gold in labels['claims']:
-            if any(c.get('scope') == gold['scope'] and key(c['value']) == key(gold['value']) for c in active):
+            if any(c.get('scope') == gold['scope'] and key(c['value']) == key(gold['value'])
+                   and (not gold.get('field') or c['field'] == gold['field']) for c in active):
                 matched.add(gold['canonical_id'])
             else:
                 stage, reason = failure_stage(envelope, company_reports.get(subject, {}), gold)

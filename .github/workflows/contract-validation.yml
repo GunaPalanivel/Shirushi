@@ -35,3 +35,19 @@ jobs:
         run: python -X dev -W error -m unittest discover -s tests -v
       - name: Compile Python modules
         run: python -W error -m compileall -q shirushi shirushi_eval tools tests
+
+  live-smoke:
+    name: Fresh 100-company source audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up pinned Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: Run fresh public companies and independent support audit
+        run: python -X dev -W error tools/validate_live_run.py --count 100 --output-dir out/live-smoke

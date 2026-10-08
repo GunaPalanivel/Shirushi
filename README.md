@@ -4,7 +4,21 @@ Evidence-checked company research for the Signalpost challenge.
 
 Start with the [engineering plan](docs/engineering-plan.md), [rubric-to-standards mapping](docs/engineering-standards.md), [company envelope](docs/company-envelope.md), and [source policy](docs/source-policy.md).
 
-Current implementation: [bounded offline batch execution](docs/batch-runner-hardening.md), saved official roles, evidence checks, semantic refresh and separate source-reference evaluation. Live retrieval, synthesis and UI remain unimplemented. Original research stays under ignored `.idea/buildDocs/`.
+Current implementation: [bounded offline batch execution](docs/batch-runner-hardening.md) plus [supervised live retrieval](docs/live-retrieval.md), exact-source evidence checks, canonical multi-period claims, semantic refresh, grounded static profiles and a separate source-support audit. Fixed routing remains the default; the adaptive scheduler has no demonstrated recall advantage yet. Original research stays under ignored `.idea/buildDocs/`.
+
+Run a fresh public 100-company smoke test and independent retained-source audit:
+
+```bash
+python -X dev -W error tools/validate_live_run.py --count 100 --output-dir out/live-smoke
+```
+
+Run your supplied JSONL batch (one `organisation_number` per line):
+
+```bash
+python -m shirushi.run --live --organisations data/input.jsonl --config configs/local-live.json --output out/run/envelopes.jsonl --report out/run/report.json --run-id run-1 --showcase-dir out/run/site
+```
+
+Serve the generated `out/run/site/` with any static HTTP server and open `/signalpost/`. Every factual profile value links to retained evidence and its original source. The CLI uses the versioned local envelope, not an organizer-confirmed official wire adapter. Numeric official limits, frozen identity snapshot integration, representative held-out recall labels and official score calibration remain release dependencies. No 80+ score is claimed.
 
 Run the contract checks with Python 3.12.12:
 
@@ -13,4 +27,4 @@ Run the contract checks with Python 3.12.12:
 .venv\Scripts\python.exe -X dev -W error -m unittest discover -s tests -v
 ```
 
-See [CONTRIBUTING](CONTRIBUTING.md) for setup and change validation, and [SECURITY](SECURITY.md) for the current security posture. The saved-company commit passed hosted contract checks on Linux and Windows; this batch change has local validation and has not been pushed. CI pins Python 3.12.12 on Linux and 3.12.10 for Windows compatibility. A project licence remains to be selected before an OSS release.
+See [CONTRIBUTING](CONTRIBUTING.md) for setup and change validation, and [SECURITY](SECURITY.md) for the current security posture. CI pins Python 3.12.12 on Linux and 3.12.10 for Windows compatibility. The fresh-source job exercises live acquisition on Linux. Review the commit's hosted checks for results. A project licence remains to be selected before an OSS release.

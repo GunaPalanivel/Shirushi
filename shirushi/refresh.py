@@ -2,26 +2,37 @@
 from copy import deepcopy
 
 from .contracts import timestamp
+from .claims import slot
 
 
 def merge(previous, decisions, observed_at):
     previous = previous or {'claims': [], 'evidence': [], 'history': []}
-    old = {c['field']: deepcopy(c) for c in previous['claims']}
+    old = {slot(c): deepcopy(c) for c in previous['claims']}
+    if len(old) != len(previous['claims']):
+        raise ValueError('Duplicate previous active claim slot')
     evidence = {e['id']: deepcopy(e) for e in previous['evidence']}
     history = deepcopy(previous.get('history', []))
     claims, changes = [], []
+    seen = set()
     for decision in decisions:
         field = decision['field']
-        prior = old.pop(field, None)
+        identity = slot(decision.get('claim', decision))
+        if identity in seen:
+            raise ValueError('Duplicate current claim slot')
+        seen.add(identity)
+        prior = old.pop(identity, None)
         if not decision['accepted']:
             if prior and prior['availability'] == 'available':
                 prior['freshness'] = 'stale_after_failed_observation'
                 prior['current_attempt_reason'] = decision['reason']
                 claims.append(prior)
             else:
-                claims.append({'field': field, 'value': None, 'availability': 'not_available'
-                               if decision['reason'] == 'absent_in_frozen_row' else 'failed',
-                               'reason': decision['reason'], 'evidence_ids': []})
+                claim = {'field': field, 'value': None, 'availability': decision.get('availability',
+                         'not_available' if decision['reason'] == 'absent_in_frozen_row' else 'failed'),
+                         'reason': decision['reason'], 'evidence_ids': []}
+                if 'claim_id' in decision:
+                    claim['claim_id'] = decision['claim_id']
+                claims.append(claim)
             continue
         new = deepcopy(decision['claim'])
         item = decision['evidence']
@@ -37,7 +48,7 @@ def merge(previous, decisions, observed_at):
                 new['first_observed_at'] = prior['first_observed_at']
             else:
                 history.append(prior)
-                changes.append({'field': field, 'kind': 'value_changed', 'old_value': prior['value'],
+                changes.append({'field': field, 'claim_id': identity, 'kind': 'value_changed', 'old_value': prior['value'],
                                 'new_value': new['value'], 'old_evidence_ids': prior['evidence_ids'],
                                 'new_evidence_ids': new['evidence_ids'], 'observed_at': observed_at})
         new.setdefault('first_observed_at', observed_at)

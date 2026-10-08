@@ -42,9 +42,10 @@ def validate_config(config, policy):
                 'max_retries', 'finalization_reserve_fraction', 'max_response_bytes', 'max_pdf_bytes',
                 'network_enabled', 'enabled_sources', 'settings_origin'}
     official_fields = {'organizer_settings_receipt', 'cpu_limit', 'memory_limit_bytes', 'cutoff', 'wire_schema_confirmed'}
+    live_fields = {'max_total_bytes', 'min_host_interval_seconds', 'max_pages_per_company', 'routing_policy'}
     missing = required - config.keys()
     errors.extend(f'Missing setting: {key}' for key in sorted(missing))
-    allowed = required | (official_fields if config.get('mode') == 'official' else set())
+    allowed = required | live_fields | (official_fields if config.get('mode') == 'official' else set())
     errors.extend(f'Unknown setting: {key}' for key in sorted(config.keys() - allowed))
     if config.get('contract_version') != 'shirushi-local-v1':
         errors.append('Unknown contract version')
@@ -62,6 +63,15 @@ def validate_config(config, policy):
             errors.append(f'Invalid finite numeric setting: {key}')
     if type(config.get('network_enabled')) is not bool:
         errors.append('network_enabled must be boolean')
+    for key in ('max_total_bytes', 'max_pages_per_company'):
+        if key in config and (type(config[key]) is not int or config[key] < 1):
+            errors.append(f'{key} must be a positive integer')
+    if 'min_host_interval_seconds' in config:
+        v = config['min_host_interval_seconds']
+        if type(v) not in (int, float) or not math.isfinite(v) or v < 0:
+            errors.append('Invalid host interval')
+    if 'routing_policy' in config and config['routing_policy'] not in ('fixed', 'adaptive'):
+        errors.append('Unknown routing policy')
     sources = config.get('enabled_sources')
     if not isinstance(sources, list) or not sources or any(not isinstance(s, str) for s in sources):
         errors.append('enabled_sources must be a nonempty list of source IDs')
@@ -179,6 +189,7 @@ def validate_envelopes(records, envelopes, contract):
         if not isinstance(claims, list):
             errors.append(prefix + 'claims must be list')
         else:
+            slots = set()
             for claim in claims:
                 if not isinstance(claim, dict):
                     errors.append(prefix + 'invalid claim')
@@ -187,6 +198,13 @@ def validate_envelopes(records, envelopes, contract):
                     errors.append(prefix + 'incomplete claim')
                 if not isinstance(claim.get('field'), str) or not claim['field'].strip():
                     errors.append(prefix + 'missing claim field')
+                identity = claim.get('claim_id', claim.get('field'))
+                if not isinstance(identity, str) or identity in slots:
+                    errors.append(prefix + 'missing or duplicate claim slot')
+                else:
+                    slots.add(identity)
+                if 'claim_id' in claim and re.fullmatch(r'[0-9a-f]{64}', str(claim['claim_id'])) is None:
+                    errors.append(prefix + 'invalid claim ID')
                 state = claim.get('availability')
                 if state not in contract['availability_states']:
                     errors.append(prefix + 'invalid availability')

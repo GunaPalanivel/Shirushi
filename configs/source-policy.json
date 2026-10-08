@@ -1,17 +1,141 @@
 {
   "version": "source-policy-v1",
-  "publication_requires": ["exact_legal_subject", "durable_permitted_source", "supporting_span", "content_hash", "original_acquisition_time", "extraction_method", "period_when_relevant"],
+  "publication_requires": [
+    "exact_legal_subject",
+    "durable_permitted_source",
+    "supporting_span",
+    "content_hash",
+    "original_acquisition_time",
+    "extraction_method",
+    "period_when_relevant"
+  ],
   "sources": [
-    {"id": "frozen_registry", "status": "enabled", "network": false, "basis": "Organizer-provided eligibility and identity snapshot for local testing", "scope": "Identity anchor; no inferred website ownership"},
-    {"id": "brreg_api", "status": "conditional", "network": true, "basis": "Official preferred source class", "activation_requires": ["endpoint_terms_receipt", "rate_policy", "adapter_tests"]},
-    {"id": "accounts_pdf", "status": "conditional", "network": true, "basis": "Official preferred source class", "activation_requires": ["endpoint_terms_receipt", "rate_policy", "units_period_scope_tests"]},
-    {"id": "company_owned", "status": "conditional", "network": true, "basis": "Official preferred source class", "activation_requires": ["exact_domain_scope", "terms_and_robots_receipt", "safe_fetcher"]},
-    {"id": "announcements", "status": "conditional", "network": true, "basis": "Official announcement discovery lead", "activation_requires": ["endpoint_terms_receipt", "dated_exact_subject", "adapter_tests"]},
-    {"id": "search_api", "status": "disabled", "network": true, "basis": "Free-first; provider/access/cost not selected", "scope": "Discovery only; snippets never publication evidence"},
-    {"id": "norid_batch", "status": "disabled", "network": true, "basis": "Bulk access not established; no batch permission inferred"},
-    {"id": "nav_jobs", "status": "disabled", "network": true, "basis": "Access credentials and permitted method not established"},
-    {"id": "patents_procurement", "status": "disabled", "network": true, "basis": "Coverage overlap and access not measured"},
-    {"id": "unofficial_social_reviews", "status": "disabled", "network": true, "basis": "No permitted access proof or independent sentiment support"},
-    {"id": "brreg_roles_snapshot", "status": "enabled", "network": false, "basis": "Saved responses from the official open roles API under NLOD 2.0; fixed endpoint and original receipt required", "scope": "Registered management/board roles only; no inferred employment or website ownership"}
+    {
+      "id": "frozen_registry",
+      "status": "enabled",
+      "network": false,
+      "basis": "Organizer-provided eligibility and identity snapshot for local testing",
+      "scope": "Identity anchor; no inferred website ownership"
+    },
+    {
+      "id": "brreg_api",
+      "status": "conditional",
+      "network": true,
+      "basis": "Official preferred source class",
+      "activation_requires": [
+        "endpoint_terms_receipt",
+        "rate_policy",
+        "adapter_tests"
+      ]
+    },
+    {
+      "id": "accounts_pdf",
+      "status": "conditional",
+      "network": true,
+      "basis": "Official preferred source class",
+      "activation_requires": [
+        "endpoint_terms_receipt",
+        "rate_policy",
+        "units_period_scope_tests"
+      ]
+    },
+    {
+      "id": "company_owned",
+      "status": "enabled",
+      "network": true,
+      "basis": "Public company-owned pages under the official permitted-source class; robots checked before each scoped page",
+      "activation_requires": [
+        "exact_domain_scope",
+        "terms_and_robots_receipt",
+        "safe_fetcher"
+      ],
+      "scope": "Declared registry website is a discovery lead only; exact JSON-LD organization identifiers required for published facts",
+      "rate_policy": "Configured per-host spacing and bounded pages; no authenticated or blocked-source bypass"
+    },
+    {
+      "id": "announcements",
+      "status": "conditional",
+      "network": true,
+      "basis": "Official announcement discovery lead",
+      "activation_requires": [
+        "endpoint_terms_receipt",
+        "dated_exact_subject",
+        "adapter_tests"
+      ]
+    },
+    {
+      "id": "search_api",
+      "status": "disabled",
+      "network": true,
+      "basis": "Free-first; provider/access/cost not selected",
+      "scope": "Discovery only; snippets never publication evidence"
+    },
+    {
+      "id": "norid_batch",
+      "status": "disabled",
+      "network": true,
+      "basis": "Bulk access not established; no batch permission inferred"
+    },
+    {
+      "id": "nav_jobs",
+      "status": "disabled",
+      "network": true,
+      "basis": "Access credentials and permitted method not established"
+    },
+    {
+      "id": "patents_procurement",
+      "status": "disabled",
+      "network": true,
+      "basis": "Coverage overlap and access not measured"
+    },
+    {
+      "id": "unofficial_social_reviews",
+      "status": "disabled",
+      "network": true,
+      "basis": "No permitted access proof or independent sentiment support"
+    },
+    {
+      "id": "brreg_roles_snapshot",
+      "status": "enabled",
+      "network": false,
+      "basis": "Saved responses from the official open roles API under NLOD 2.0; fixed endpoint and original receipt required",
+      "scope": "Registered management/board roles only; no inferred employment or website ownership"
+    },
+    {
+      "id": "brreg_entity",
+      "status": "enabled",
+      "network": true,
+      "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
+      "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
+      "scope": "Exact entity, registered activity and declared website discovery lead",
+      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+    },
+    {
+      "id": "brreg_roles",
+      "status": "enabled",
+      "network": true,
+      "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
+      "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
+      "scope": "Active registered person roles",
+      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+    },
+    {
+      "id": "brreg_accounts",
+      "status": "enabled",
+      "network": true,
+      "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
+      "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
+      "scope": "Entity and group annual revenue with separate periods and scopes",
+      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+    },
+    {
+      "id": "brreg_subunits",
+      "status": "enabled",
+      "network": true,
+      "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
+      "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
+      "scope": "Registered operating locations attributed through overordnetEnhet",
+      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+    }
   ]
 }
