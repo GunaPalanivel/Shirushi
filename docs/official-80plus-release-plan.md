@@ -90,6 +90,16 @@ candidate counts improve. No domain or organisation number is hard-coded into
 the submitted discovery implementation; the known company remains a regression
 input, not a held-out recall estimate.
 
+At `9762b559`, the identical exact-number query returned zero results in one
+hosted job and nine in another; website verification and 18 catalogue facts
+passed in only one run. Query order alone is insufficient. The site's observed
+robots sitemap index and Norwegian sitemap explicitly list the unlinked seller
+terms. Test a fallback bounded to two metadata fetches plus the existing six
+HTML attempts, same-host/locale scope and unchanged exact seller checks. A
+recorded-source replay now recovers ownership from the foreign candidate.
+Two company-gain jobs also failed with an incomplete-batch diagnostic; retain
+the worker reason in the next summary and resolve it before merge.
+
 Both full `c51a0486` workflows finished with eight jobs passing and the website
 regression failing. The combined six-source shard produced every output in
 716/718 seconds, with 852/857 requests and no unsupported publications. Both

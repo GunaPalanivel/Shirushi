@@ -66,6 +66,38 @@ jobs on that same final head to pass. Candidate counts or passing mocked tests
 alone do not establish success. Preserve customer, parent-company and foreign
 seller rejection. Do not hard-code the diagnostic URL into production.
 
+## Follow-up results on `9762b559`
+
+Both full workflows finished before the next code change. PR run
+[37819782100](https://github.com/GunaPalanivel/Shirushi/actions/runs/37819782100)
+failed website and validation company-gain checks; push run
+[37819776077](https://github.com/GunaPalanivel/Shirushi/actions/runs/37819776077)
+passed website but failed development company gains. Both combined shards
+passed, with 854/855 requests and 691/649 seconds, all 100 outputs, $0 spend and
+no unsupported publications. Representative external coverage remains zero.
+
+The same exact-number query returned zero results in the failed website job
+(`dc058799-a7a3-49a7-a3c5-95596503ae52`) and nine in the passing job
+(`b1115790-3e08-472c-bc66-9e4c49478309`). The passing job acquired the Norwegian
+terms, verified the website and audited 18 catalogue facts in 10 requests and
+70 seconds. The failing job fell back to the same foreign contact lead. Hosted
+search variability is now directly observed; its upstream cause remains unknown.
+Query order alone is an insufficient repair.
+
+The company's observed robots response advertises `/sitemap-index.xml`; that
+index links `/nb-no/sitemap-0.xml`, which explicitly lists the seller terms.
+A recorded-source replay using only the foreign CI candidate now succeeds with
+two metadata reads and six bounded HTML attempts, without supplying the terms
+URL directly. XML leads are filtered to the observed host and locale, reject
+DTD/entities and retain exact seller ownership checking. The corresponding
+worker/source-audit regression fails on the old code and passes after repair.
+Fresh production CI is still required. No production URL is synthesized.
+
+The company-gain failures retained their gains but expose only the validator's
+generic `Incomplete or failed live batch`. The next diagnostic summary retains
+the existing run errors, failed-company count and worker completion/reason.
+That failure is unresolved; do not claim it repaired or erase it with a rerun.
+
 ## Organizer email and release decision
 
 Soham confirms 100-company shards, 45 minutes, 8 vCPU, 16 GB RAM, 10 GB temporary

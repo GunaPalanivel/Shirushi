@@ -164,6 +164,63 @@ class CoverageRepairTests(unittest.TestCase):
         audit = SourceAudit(self.store.root, [SUBJECT]); evidence = {e['id']: e for e in result['evidence']}
         for c in result['claims']: audit.claim(SUBJECT, c, evidence)
 
+    def test_sitemap_recovers_unlinked_seller_terms_after_empty_exact_search(self):
+        config = load(ROOT / 'configs/local-external.json')
+        config.update(enabled_sources=['brreg_entity', 'company_owned'], min_host_interval_seconds=0, max_retries=0,
+                      max_pages_per_company=6)
+        frames, seen = [], []
+        class Connection:
+            def send(self, frame): frames.append(frame)
+            def close(self): pass
+        def transport(fetcher, url, timeout, limit, headers=None, request_body=None):
+            seen.append(url)
+            if 'api.anysearch.com' in url:
+                query = json.loads(request_body)['query']
+                results = [] if '942 037 538' in query else [{'url': 'https://example.com/fr/contact'}]
+                raw, kind = json.dumps({'code': 0, 'data': {'results': results}}).encode(), 'application/json'
+            elif 'data.brreg.no' in url:
+                raw, kind = json.dumps({'organisasjonsnummer': SUBJECT, 'navn': 'Example AS', '_links': {'self': {'href': url}}}).encode(), 'application/json'
+            elif url.endswith('robots.txt'):
+                raw, kind = b'User-agent: *\nAllow: /\nSitemap: https://example.com/index.xml', 'text/plain'
+            elif url.endswith('/index.xml'):
+                raw, kind = b'<sitemapindex><sitemap><loc>https://example.com/fr/map.xml</loc></sitemap><sitemap><loc>https://example.com/nb-no/map.xml</loc></sitemap></sitemapindex>', 'application/xml'
+            elif url.endswith('/nb-no/map.xml'):
+                raw, kind = b'<urlset><url><loc>https://other.example/nb-no/terms</loc></url><url><loc>https://example.com/nb-no/terms</loc></url></urlset>', 'application/xml'
+            elif url.endswith('/terms'):
+                raw, kind = b'<p>Terms for purchase agreements between Example AS, organization no. 942037538 and customers.</p>', 'text/html'
+            elif url.endswith('/fr/contact'):
+                raw, kind = b'<a data-language="NB-NO" href="/nb-no/">Norsk</a>', 'text/html'
+            else:
+                raw, kind = b'<a href="/nb-no/legal-notice">Legal</a><a href="/nb-no/om-oss/jobs">Careers</a><a href="/nb-no/products/work-jacket">Work jacket</a>', 'text/html'
+            fetcher.budget.consume(len(raw))
+            return 200, {'content-type': kind}, raw
+        job = {'store': self.store.root, 'subjects': [SUBJECT], 'previous': {}, 'config': config,
+               'deadline': time.monotonic() + 5, 'started_at': WHEN, 'run_id': 'sitemap-traversal',
+               'discovery': {'provider': 'anysearch', 'max_queries_per_company': 2, 'max_candidates': 3, 'request_interval_seconds': .02}}
+        with patch('shirushi.fetch.Fetcher._request', transport): worker(Connection(), job)
+        self.assertFalse([f for f in frames if f[0] == 'fatal'])
+        result = next(f[2]['envelope'] for f in frames if f[0] == 'result')
+        self.assertEqual({o['family'] for o in result['opportunities'] if o['status'] == 'covered'},
+                         {'business_products', 'website_owned_profiles'})
+        self.assertEqual([u for u in seen if u.endswith('.xml')],
+                         ['https://example.com/index.xml', 'https://example.com/nb-no/map.xml'])
+        self.assertFalse([u for u in seen if 'other.example' in u])
+        pages = [u for u in seen if 'example.com' in u and not u.endswith(('.xml', 'robots.txt'))]
+        self.assertLessEqual(len(pages), 6)
+        audit = SourceAudit(self.store.root, [SUBJECT]); evidence = {e['id']: e for e in result['evidence']}
+        for claim in result['claims']: audit.claim(SUBJECT, claim, evidence)
+        requests = next(f[2]['requests'] for f in reversed(frames) if f[0] == 'accounting')
+        self.assertEqual(requests, len(seen))
+
+    def test_sitemap_rejects_entities_unsafe_hosts_and_wrong_locale(self):
+        from shirushi.web_sources import sitemap_links
+        with self.assertRaisesRegex(ValueError, 'Unsafe'):
+            sitemap_links(b'<!DOCTYPE x [<!ENTITY x "boom">]><urlset/>', 'https://example.com/map.xml', '/nb-no/')
+        raw = b'<urlset><url><loc>https://example.com/fr/terms</loc></url><url><loc>https://example.com/nb-no/legal</loc></url><url><loc>http://example.com/nb-no/terms</loc></url><url><loc>https://user:pass@example.com/nb-no/terms</loc></url><url><loc>https://other.example/nb-no/terms</loc></url><url><loc>https://example.com/nb-no/terms</loc></url></urlset>'
+        kind, leads = sitemap_links(raw, 'https://example.com/map.xml', '/nb-no/')
+        self.assertEqual(kind, 'urlset')
+        self.assertEqual(leads, ['https://example.com/nb-no/terms', 'https://example.com/nb-no/legal'])
+
     def test_anonymous_quota_failure_is_not_retried_for_every_company(self):
         config = load(ROOT / 'configs/local-live.json'); config.update(max_retries=0)
         budget = Budget(config, time.monotonic() + 3)

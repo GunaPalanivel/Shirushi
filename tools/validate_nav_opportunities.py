@@ -53,6 +53,9 @@ def run(root, directory, inputs, challenger):
     if process.returncode or report['failed_companies'] or report['errors']:
         errors.append('Incomplete or failed live batch')
     return outcomes, {'operations': report['operations'], 'facts': counts, 'errors': errors,
+        'run_errors': report['errors'], 'failed_companies': report['failed_companies'],
+        'supervision': {k: report.get('supervision', {}).get(k) for k in
+                        ('worker_completed', 'worker_exit_code', 'unfinished_reason')},
         'output_count': len(rows), 'input_count': len(inputs),
         'artifact_binding': {k: report[k] for k in ('input_sha256', 'config_sha256', 'code_sha256', 'output_sha256')}}
 

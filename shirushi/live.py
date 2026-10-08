@@ -17,13 +17,13 @@ from .fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, safe_url,
 from .planner import Planner, ROUTE_FAMILIES
 from .roles import check_role, propose_roles
 from .snapshots import SnapshotStore, digest
-from .web_sources import check_web, locale_links, page_links
+from .web_sources import check_web, locale_links, page_links, sitemap_links
 from .nav_jobs import NavFeed, check_nav
 
 
 def acquire_website(fetcher, subject, entity, discovery, max_pages):
     """Follow legal/contact leads before rejecting a site; bound all candidate pages."""
-    pages, failures, seen = [], [], set()
+    pages, failures, seen, metadata_seen = [], [], set(), set()
     funnel = {'candidate_domains': 0, 'candidate_pages_retrieved': 0, 'candidate_identity_rejections': 0}
     declared = entity.get('hjemmeside')
     candidates = []
@@ -71,6 +71,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
             url = root[1]['effective_url']
             host = {urlsplit(url).hostname}
             links = page_links(root[0], url)
+            locale_url = url
             owner = root if operator_proof(root[0], subject, entity['navn']) else None
             if owner is None:
                 # Search can land on a foreign locale. Follow one explicitly
@@ -79,6 +80,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                     page = retrieve(link, host)
                     if page:
                         local.append(page)
+                        locale_url = page[1]['effective_url']
                         links = page_links(page[0], page[1]['effective_url'])
                         if operator_proof(page[0], subject, entity['navn']):
                             owner = page
@@ -100,6 +102,35 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                         identity_links = [child for child in page_links(page[0], page[1]['effective_url'])
                                           if child not in seen and re.search(r'legal|jurid|terms|vilk|imprint',
                                                                             urlsplit(child).path, re.I)] + identity_links
+            if owner is None and len(seen) < max_pages and len(metadata_seen) < 2:
+                # Some seller terms are absent from navigation but explicitly
+                # listed in robots-advertised XML. Two metadata fetches total
+                # per company, separate from the bounded HTML page attempts.
+                prefix = urlsplit(locale_url).path.rsplit('/', 1)[0] + '/'
+                try:
+                    pending_maps = list(getattr(fetcher, 'advertised_sitemaps', lambda *a: [])(locale_url, host))
+                    while pending_maps and len(metadata_seen) < 2 and owner is None:
+                        map_url = pending_maps.pop(0)
+                        if map_url in metadata_seen:
+                            continue
+                        metadata_seen.add(map_url)
+                        raw, receipt = fetcher.get(map_url, host, robots=True)
+                        kind, leads = sitemap_links(raw, receipt['effective_url'], prefix)
+                        if kind == 'sitemapindex':
+                            pending_maps = leads[:1] + pending_maps
+                            continue
+                        for link in leads:
+                            page = retrieve(link, host)
+                            if page:
+                                local.append(page)
+                                if operator_proof(page[0], subject, entity['navn']):
+                                    owner = page
+                                    break
+                            if len(seen) >= max_pages:
+                                break
+                except (SourceUnavailable, ValueError) as exc:
+                    failures.append({'url': locale_url, 'reason': 'Sitemap lead unavailable: ' + str(exc),
+                                     'availability': getattr(exc, 'availability', 'not_available')})
             if owner is None:
                 funnel['candidate_identity_rejections'] += 1
                 failures.append({'url': url, 'reason': 'No exact legal operator proof', 'availability': 'ambiguous'})

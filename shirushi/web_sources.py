@@ -1,5 +1,6 @@
 """Conservative company-owned JSON-LD facts; no inferred legal ownership."""
 import re
+import xml.etree.ElementTree as ET
 from datetime import date
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
@@ -217,6 +218,35 @@ def locale_links(raw, url):
         if candidate != url and candidate not in result:
             result.append(candidate)
     return result
+
+
+def sitemap_links(raw, url, prefix):
+    """Same-host observed XML URLs in the selected locale; never ownership."""
+    if len(raw) > 2097152 or re.search(br'<!\s*(?:DOCTYPE|ENTITY)', raw, re.I):
+        raise ValueError('Unsafe or oversized sitemap')
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        raise ValueError('Invalid sitemap XML') from None
+    kind = root.tag.rsplit('}', 1)[-1]
+    if kind not in ('sitemapindex', 'urlset'):
+        raise ValueError('Unknown sitemap format')
+    result = []
+    for index, element in enumerate(root.iter()):
+        if index >= 15000:
+            break
+        if element.tag.rsplit('}', 1)[-1] != 'loc':
+            continue
+        try:
+            candidate = safe_url(element.text, {urlsplit(url).hostname})
+        except ValueError:
+            continue
+        if urlsplit(candidate).path.startswith(prefix) and candidate not in result:
+            result.append(candidate)
+    if kind == 'urlset':
+        result = [u for u in result if re.search(r'vilk|terms|legal|jurid|imprint|kontakt|contact', urlsplit(u).path, re.I)]
+        result.sort(key=lambda u: not bool(re.search(r'vilk|terms', urlsplit(u).path, re.I)))
+    return kind, result
 
 
 def page_links(raw, url):

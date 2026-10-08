@@ -340,6 +340,22 @@ class Fetcher:
                     receipt['robots_response'] = self.robots_sources['https://' + urlsplit(url).netloc]
             return raw, receipt
 
+    def advertised_sitemaps(self, url, allowed_hosts):
+        """Return observed same-host metadata leads, after establishing robots."""
+        self.check_robots(url, allowed_hosts)
+        origin = 'https://' + urlsplit(url).netloc
+        result = []
+        with self.robots_condition:
+            leads = self.robots[origin].site_maps() or []
+        for lead in leads:
+            try:
+                candidate = safe_url(lead, {urlsplit(url).hostname})
+            except SourceUnavailable:
+                continue
+            if candidate not in result:
+                result.append(candidate)
+        return result[:2]
+
     def check_robots(self, url, allowed_hosts):
         parts = urlsplit(url)
         origin = 'https://' + parts.netloc
