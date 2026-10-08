@@ -21,9 +21,8 @@ def audit_nav(audit, subject, claim, item, receipt, raw):
     bridge = strict_json(bridge_raw)
     endpoint = 'https://data.brreg.no/enhetsregisteret/api/underenheter/' + employer
     identity = ad['uuid']
-    identity_receipt = strict_json(audit.read('receipts', receipt['legal_identity_snapshot_id']))
-    identity_raw = audit.read('objects', identity_receipt['content_sha256'])
-    legal = strict_json(identity_raw)
+    from .registry_support import identity_anchor
+    legal = identity_anchor(audit, receipt['legal_identity_snapshot_id'], subject)
     if (receipt['http_status'] != 200 or receipt['sha256'] != hashlib.sha256(raw).hexdigest()
             or receipt['source_url'] != url or parts.scheme != 'https' or parts.hostname != host
             or parts.username or parts.password or parts.port not in (None, 443)
@@ -34,13 +33,12 @@ def audit_nav(audit, subject, claim, item, receipt, raw):
             or bridge_receipt['source_url'] != endpoint or bridge_receipt['effective_url'] != endpoint
             or bridge_receipt['sha256'] != hashlib.sha256(bridge_raw).hexdigest()
             or bridge['organisasjonsnummer'] != employer or bridge['overordnetEnhet'] != subject
-            or identity_receipt['source_class'] != 'brreg_entity' or identity_receipt['http_status'] != 200
-            or identity_receipt['source_url'] != 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject
-            or legal['organisasjonsnummer'] != subject or identity_receipt['sha256'] != hashlib.sha256(identity_raw).hexdigest()
             or re.fullmatch('[0-9a-f-]{36}', identity) is None or source['uuid'] != identity
             or not url.endswith('/' + identity)):
         raise ValueError('Audit NAV posting/employer chain mismatch')
-    observed = check_time(receipt['retrieved_at'])
+    observed = check_time(receipt.get('evaluation_cutoff', receipt['retrieved_at']))
+    if observed > check_time(receipt['retrieved_at']):
+        raise ValueError('Audit cutoff exceeds acquisition')
     if (check_time(ad['published']) > observed or check_time(ad['expires']) < observed
             or not isinstance(ad['title'], str) or not ad['title'].strip()):
         raise ValueError('Audit NAV posting is not active at acquisition')

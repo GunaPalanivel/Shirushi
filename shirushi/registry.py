@@ -1,4 +1,5 @@
-"""Read one exact legal subject from a hash-verified frozen JSONL archive."""
+"""Select exact subjects from hash-verified frozen JSONL or BRREG CSV."""
+import csv
 import gzip
 import hashlib
 import io
@@ -9,10 +10,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .contracts import loads, timestamp, validate_inputs
-from .snapshots import digest
+from .snapshots import canonical, digest
 
-MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
-MAX_EXPANDED_BYTES = 512 * 1024 * 1024
+MAX_ARCHIVE_BYTES = 1024 * 1024 * 1024
+MAX_EXPANDED_BYTES = 2 * 1024 * 1024 * 1024
 MAX_ROW_BYTES = 1024 * 1024
 
 
@@ -21,6 +22,8 @@ def check_receipt(receipt):
         raise ValueError('Registry receipt must be an object')
     if receipt.get('source_class') != 'frozen_registry':
         raise ValueError('Receipt must identify frozen_registry')
+    if receipt.get('dataset_format', 'jsonl') not in ('jsonl', 'csv'):
+        raise ValueError('Registry format must be jsonl or csv')
     if not isinstance(receipt.get('source_url'), str):
         raise ValueError('Registry receipt needs a source URL')
     url = urlsplit(receipt['source_url'])
@@ -42,6 +45,43 @@ def find_rows(data, receipt, subjects, compressed, deadline=None):
     found = {}
     wanted = set(subjects)
     total, hasher = 0, hashlib.sha256()
+    if receipt.get('dataset_format') == 'csv':
+        def lines():
+            nonlocal total
+            while True:
+                if deadline is not None and time.monotonic() > deadline:
+                    raise ValueError('Registry verification deadline exceeded')
+                line = stream.readline(MAX_ROW_BYTES + 1)
+                if not line:
+                    break
+                total += len(line)
+                if len(line) > MAX_ROW_BYTES or total > MAX_EXPANDED_BYTES:
+                    raise ValueError('Registry expansion exceeds declared bound')
+                hasher.update(line)
+                yield line.decode('utf-8-sig' if total == len(line) else 'utf-8')
+        with stream:
+            source = lines()
+            header = next(source, '')
+            dialect = csv.Sniffer().sniff(header, delimiters=';,\t')
+            fields = next(csv.reader([header], dialect=dialect))
+            if len(fields) != len(set(fields)) or 'organisasjonsnummer' not in fields:
+                raise ValueError('CSV needs unique BRREG column names')
+            reader = csv.DictReader(source, fieldnames=fields, dialect=dialect, strict=True)
+            for index, row in enumerate(reader, 1):
+                if None in row or any(v is None for v in row.values()):
+                    raise ValueError('CSV row width differs from header')
+                subject = row['organisasjonsnummer']
+                if re.fullmatch('[0-9]{9}', subject) is None:
+                    raise ValueError('Invalid CSV organisation number')
+                if subject in wanted:
+                    if subject in found:
+                        raise ValueError('Duplicate requested subject in registry')
+                    # Retain every parsed column, not a maker projection. The
+                    # checker reselects it from the complete original archive.
+                    found[subject] = (canonical(row), index)
+        if hasher.hexdigest() != receipt['uncompressed_sha256']:
+            raise ValueError('Expanded registry hash mismatch')
+        return found
     with stream:
         index = 0
         while True:
@@ -89,8 +129,11 @@ def acquire_batch(path, receipt, subjects, store, deadline):
     if path.stat().st_size > MAX_ARCHIVE_BYTES:
         raise ValueError('Registry archive exceeds local bound')
     compressed = path.name.endswith('.gz')
-    if not (path.name.endswith('.jsonl') or path.name.endswith('.jsonl.gz')):
-        raise ValueError('Only JSONL and JSONL.GZ registry inputs are supported')
+    expected = 'csv' if path.name.endswith(('.csv', '.csv.gz')) else 'jsonl'
+    if not path.name.endswith(('.jsonl', '.jsonl.gz', '.csv', '.csv.gz')):
+        raise ValueError('Registry must be JSONL or CSV, optionally gzip compressed')
+    if receipt.get('dataset_format', 'jsonl') != expected:
+        raise ValueError('Registry suffix and receipt format differ')
     data = path.read_bytes()
     rows = find_rows(data, receipt, subjects, compressed, deadline)
     parent = store.put('objects', data)
@@ -98,6 +141,6 @@ def acquire_batch(path, receipt, subjects, store, deadline):
     for subject, (row, index) in rows.items():
         metadata = dict(receipt, parent_sha256=parent, row_number=index,
                         compressed=compressed, organisation_number=subject,
-                        snapshot_kind='registry_jsonl')
+                        snapshot_kind='registry_' + expected)
         results[subject] = store.save(row, metadata)
     return results

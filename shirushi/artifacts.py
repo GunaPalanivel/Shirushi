@@ -1,11 +1,27 @@
 """Publish complete bytes atomically without overwriting an existing artifact."""
 import os
+import json
 import tempfile
 from pathlib import Path
 
 
 def publish_new(path, data):
     path = Path(path)
+    roots = os.environ.get('SHIRUSHI_ARTIFACT_ROOTS')
+    store = os.environ.get('SHIRUSHI_QUOTA_STORE')
+    if roots and store:
+        store = Path(store).resolve()
+        if store != path.resolve() and store not in path.resolve().parents:
+            used = 0
+            for root in map(Path, json.loads(roots)):
+                if root.is_file():
+                    used += root.stat().st_size
+                elif root.is_dir():
+                    for folder, directories, files in os.walk(root):
+                        directories[:] = [name for name in directories if (Path(folder) / name).resolve() != store]
+                        used += sum((Path(folder) / name).stat().st_size for name in files)
+            if used + len(data) > 500_000_000:
+                raise ValueError('Non-snapshot artifact byte limit exhausted')
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:

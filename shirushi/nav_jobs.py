@@ -11,6 +11,7 @@ from .contracts import loads, timestamp
 from .fetch import SourceUnavailable, safe_url
 from .json_spans import span as locate
 from .snapshots import digest
+from .identity import legal_anchor
 
 HOST = 'pam-stilling-feed.nav.no'
 SUBUNIT = 'https://data.brreg.no/enhetsregisteret/api/underenheter/'
@@ -38,8 +39,9 @@ def business_statement(description, legal_name):
 
 
 class NavFeed:
-    def __init__(self, fetcher, days=7, max_pages=8):
+    def __init__(self, fetcher, days=7, max_pages=8, cutoff=None):
         self.fetcher, self.days, self.max_pages = fetcher, days, max_pages
+        self.cutoff = timestamp(cutoff) if cutoff else None
         self.lock, self.index, self.token, self.error = threading.Lock(), None, None, None
         self.diagnostics = {'pages': 0, 'active_headers': 0, 'window_complete': False, 'days': days, 'max_pages': max_pages}
 
@@ -56,7 +58,7 @@ class NavFeed:
             if len(tokens) != 1:
                 raise SourceUnavailable('Invalid NAV public experimental-token response', 'blocked')
             self.token = tokens[0]
-            since = email.utils.format_datetime(datetime.now(timezone.utc) - timedelta(days=self.days), usegmt=True)
+            since = email.utils.format_datetime((self.cutoff or datetime.now(timezone.utc)) - timedelta(days=self.days), usegmt=True)
             url, index = 'https://' + HOST + '/api/v1/feed', {}
             seen_pages = set()
             for _ in range(self.max_pages):
@@ -100,8 +102,11 @@ class NavFeed:
         finally:
             self.lock.release()
 
-    def for_company(self, subject, entity):
-        candidates = self.headers().get(company_key(entity['navn']), [])
+    def for_company(self, subject, entity, employer_names=()):
+        index = self.headers()
+        names = [entity['navn']] + list(employer_names)
+        candidates = [url for name in names if isinstance(name, str) and name.strip()
+                      for url in index.get(company_key(name), [])]
         pages, failures = [], []
         # Name is a retrieval lead only. Every detail must pass the official org bridge.
         for url in list(dict.fromkeys(candidates))[:3]:
@@ -131,7 +136,7 @@ class NavFeed:
         return pages, failures
 
 
-def check_nav(store, subject, sid):
+def check_nav(store, subject, sid, checker=None):
     raw, receipt = store.open(sid)
     detail = loads(raw)
     if not isinstance(detail, dict) or not isinstance(detail.get('ad_content'), dict):
@@ -142,8 +147,7 @@ def check_nav(store, subject, sid):
     org = ad.get('employer', {}).get('orgnr')
     bridge_raw, bridge_receipt = store.open(receipt['employer_snapshot_id'])
     bridge = loads(bridge_raw)
-    anchor_raw, anchor_receipt = store.open(receipt['legal_identity_snapshot_id'])
-    anchor = loads(anchor_raw)
+    anchor = legal_anchor(store, receipt['legal_identity_snapshot_id'], subject, checker)
     if (receipt['organisation_number'] != subject or receipt['source_class'] != 'nav_jobs'
             or receipt['http_status'] != 200 or receipt['sha256'] != digest(raw)
             or urlsplit(receipt['effective_url']).hostname != HOST
@@ -153,12 +157,11 @@ def check_nav(store, subject, sid):
             or bridge_receipt['effective_url'] != bridge_receipt['source_url']
             or bridge_receipt['source_class'] != 'brreg_job_employer'
             or bridge_receipt['sha256'] != digest(bridge_raw) or bridge_receipt['organisation_number'] != subject
-            or bridge.get('organisasjonsnummer') != org or bridge.get('overordnetEnhet') != subject
-            or anchor_receipt['source_class'] != 'brreg_entity' or anchor_receipt['http_status'] != 200
-            or anchor_receipt['source_url'] != 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject
-            or anchor_receipt['sha256'] != digest(anchor_raw) or anchor.get('organisasjonsnummer') != subject):
+            or bridge.get('organisasjonsnummer') != org or bridge.get('overordnetEnhet') != subject):
         raise ValueError('NAV exact-employer source chain mismatch')
-    cutoff = timestamp(receipt['retrieved_at'])
+    cutoff = timestamp(receipt.get('evaluation_cutoff', receipt['retrieved_at']))
+    if cutoff > timestamp(receipt['retrieved_at']):
+        raise ValueError('Evaluation cutoff is after acquisition')
     posted, expires = timestamp(ad['published']), timestamp(ad['expires'])
     if posted > cutoff or expires < cutoff or not isinstance(ad.get('title'), str) or not ad['title'].strip():
         return []

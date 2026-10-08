@@ -10,6 +10,7 @@ from .contracts import loads, timestamp
 from .html_sources import catalogue_values, html_values, operator_proof
 from .fetch import safe_url, website_candidate, website_hosts
 from .snapshots import digest
+from .identity import legal_anchor
 
 
 class Page(HTMLParser):
@@ -117,23 +118,19 @@ def page_values(raw, subject, url, cutoff=None):
                            'jobs_dated_activity', url, script_index, path)
 
 
-def check_web(store, subject, sid):
+def check_web(store, subject, sid, checker=None):
     raw, receipt = store.open(sid)
     if (receipt['organisation_number'] != subject or receipt['source_class'] != 'company_owned'
             or receipt['http_status'] != 200 or receipt['sha256'] != digest(raw)
             or receipt.get('robots_checked') is not True
             or receipt.get('declared_host') != urlsplit(receipt['effective_url']).hostname):
         raise ValueError('Company page receipt mismatch')
-    anchor_raw, anchor_receipt = store.open(receipt['ownership_anchor_snapshot_id'])
-    anchor = loads(anchor_raw)
+    anchor = legal_anchor(store, receipt['ownership_anchor_snapshot_id'], subject, checker)
     declared = anchor.get('hjemmeside', '')
     try:
         declared = website_candidate(declared)
     except ValueError:
         declared = ''
-    if (anchor_receipt['source_class'] != 'brreg_entity' or anchor.get('organisasjonsnummer') != subject
-            or anchor_receipt['source_url'] != 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject):
-        raise ValueError('Website identity anchor mismatch')
     host = urlsplit(declared).hostname
     registry_host = host is not None and receipt['declared_host'] in website_hosts(host)
     ownership_sid = receipt.get('operator_snapshot_id', sid)
@@ -155,7 +152,9 @@ def check_web(store, subject, sid):
             raise ValueError('Company page escapes the verified seller locale/path')
     if not registry_host and not proof:
         raise ValueError('Website discovery is not anchored to this company')
-    cutoff = timestamp(receipt['retrieved_at']).date()
+    cutoff = timestamp(receipt.get('evaluation_cutoff', receipt['retrieved_at'])).date()
+    if cutoff > timestamp(receipt['retrieved_at']).date():
+        raise ValueError('Evaluation cutoff is after acquisition')
     decisions = []
     scripts = Page(raw).scripts
     for field, value, family, item, script, path in page_values(raw, subject, receipt['effective_url'], cutoff):

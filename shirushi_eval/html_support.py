@@ -120,7 +120,7 @@ def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
             dates = re.findall(r'(?<![0-9])[0-9]{4}-[0-9]{2}-[0-9]{2}(?![0-9])', text)
             if (node['tag'] not in ('p', 'article') or len(dates) != 1 or not re.search(
                     re.escape(legal_name) + r'\s+(?:launched|opened|announced|signed|lanserte|\u00e5pnet|kunngjorde|signerte)\b', text, re.I)
-                    or date.fromisoformat(dates[0]) > date.fromisoformat(receipt['retrieved_at'][:10])):
+                    or date.fromisoformat(dates[0]) > date.fromisoformat(receipt.get('evaluation_cutoff', receipt['retrieved_at'])[:10])):
                 raise ValueError('Audit unsupported dated activity')
             expected = {'statement': text, 'activity_date': dates[0], 'source_url': receipt['effective_url']}
             family = 'jobs_dated_activity'

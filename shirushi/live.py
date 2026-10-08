@@ -9,8 +9,11 @@ from urllib.parse import urlsplit
 from .api_sources import ACCOUNTS, ENTITY, SUBUNITS, check_api, propose_api
 from .batch import envelope
 from .claims import claim_id, slot
-from .contracts import loads, timestamp
-from .extraction import Candidate
+from .contracts import load, loads, timestamp
+from .extraction import Candidate, extract
+from .evidence import EvidenceChecker
+from .identity import legal_anchor
+from .registry import acquire_batch
 from .discovery import AnySearchDiscovery, BraveDiscovery, LegalNameDiscovery
 from .html_sources import operator_proof
 from .fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, safe_url, website_candidate, website_hosts
@@ -32,6 +35,21 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
             candidates.append(website_candidate(declared))
         except SourceUnavailable as exc:
             failures.append({'reason': str(exc), 'availability': exc.availability})
+    # Registry email is a retrieval hint, never website attribution. Accountants
+    # and shared mail services must still fail the ordinary operator checker.
+    email = entity.get('epostadresse')
+    match = re.fullmatch(r'[^\s@]+@([A-Za-z0-9.-]+)', email) if isinstance(email, str) else None
+    if match:
+        host = match[1].lower()
+        generic = {'gmail.com', 'hotmail.com', 'hotmail.no', 'outlook.com', 'outlook.no', 'live.com', 'live.no',
+                   'yahoo.com', 'yahoo.no', 'icloud.com', 'proton.me', 'protonmail.com', 'online.no'}
+        if host not in generic:
+            try:
+                lead = website_candidate(host)
+                if lead not in candidates:
+                    candidates.append(lead)
+            except SourceUnavailable:
+                pass
 
     def retrieve(url, hosts):
         if len(seen) >= max_pages or url in seen:
@@ -191,7 +209,7 @@ def covered_families(claims):
             if family is not None}
 
 
-def verify_previous(store, prior, subject):
+def verify_previous(store, prior, subject, checker=None):
     evidence = {e['id']: e for e in prior['evidence']}
     referenced = set()
     for claim in prior['claims'] + prior.get('history', []):
@@ -200,11 +218,14 @@ def verify_previous(store, prior, subject):
         for ref in claim['evidence_ids']:
             referenced.add(ref)
             item = evidence[ref]
-            if item['source_class'] == 'company_owned':
-                decisions = check_web(store, subject, item['snapshot_id'])
+            if item['source_class'] == 'frozen_registry':
+                decision = (checker or EvidenceChecker(store, [subject])).check(
+                    Candidate(subject, claim['field'], claim['value'], item['snapshot_id']), subject)
+            elif item['source_class'] == 'company_owned':
+                decisions = check_web(store, subject, item['snapshot_id'], checker=checker)
                 decision = next((d for d in decisions if slot(d['claim']) == slot(claim)), None)
             elif item['source_class'] == 'nav_jobs':
-                decisions = check_nav(store, subject, item['snapshot_id'])
+                decisions = check_nav(store, subject, item['snapshot_id'], checker=checker)
                 decision = next((d for d in decisions if slot(d['claim']) == slot(claim)), None)
             elif item['source_class'] == 'brreg_roles_snapshot':
                 decision = check_role(store, Candidate(subject, claim['field'], claim['value'],
@@ -231,13 +252,14 @@ def worker(connection, job):
     fetcher, planner = Fetcher(budget), Planner(job['config']['routing_policy'])
     discovery = ((AnySearchDiscovery if job['discovery'].get('provider') == 'anysearch' else BraveDiscovery)
                  (fetcher, job['discovery']) if job.get('discovery') else LegalNameDiscovery())
-    nav = NavFeed(fetcher) if 'nav_jobs' in job['config']['enabled_sources'] else None
+    nav = NavFeed(fetcher, cutoff=job.get('cutoff')) if 'nav_jobs' in job['config']['enabled_sources'] else None
     subjects, previous = job['subjects'], job['previous']
+    checker = EvidenceChecker(store, subjects, job['deadline'])
     states = {s: {'decisions': [], 'attempts': [], 'entity': None, 'failure': None} for s in subjects}
     try:
         for subject, prior in previous.items():
             try:
-                verify_previous(store, prior, subject)
+                verify_previous(store, prior, subject, checker)
             except Exception as exc:
                 connection.send(('invalid_previous', None, f'{type(exc).__name__}: {exc}'))
                 return
@@ -255,7 +277,7 @@ def worker(connection, job):
 
         # Threads acquire bytes only. The collector owns state, snapshots, checks,
         # planner statistics and every supervisor Pipe publication.
-        def acquire(subject, route, entity):
+        def acquire(subject, route, entity, employer_names=()):
             clock = time.monotonic()
             before = getattr(budget.local, 'requests', 0)
             cost_before = getattr(budget.local, 'cost', 0.0)
@@ -268,7 +290,7 @@ def worker(connection, job):
                     if not pages:
                         raise SourceUnavailable('No legally attributable website candidate', 'not_available')
                 elif route == 'nav_jobs':
-                    pages, failures = nav.for_company(subject, entity)
+                    pages, failures = nav.for_company(subject, entity, employer_names)
                 else:
                     url = (ENTITY + subject + '/roller' if route == 'brreg_roles' else
                            (ACCOUNTS if route == 'brreg_accounts' else SUBUNITS if route == 'brreg_subunits' else ENTITY) + subject)
@@ -303,6 +325,8 @@ def worker(connection, job):
                              robots_checked=robots, declared_host=urlsplit(receipt['effective_url']).hostname,
                              ownership_anchor_snapshot_id=states[subject].get('entity_sid') if robots else None,
                              operator_snapshot_id=states[subject].get('operator_sid') if robots else None)
+            if job.get('cutoff'):
+                metadata['evaluation_cutoff'] = job['cutoff']
             if metadata['operator_snapshot_id'] is None:
                 del metadata['operator_snapshot_id']
             sid = store.save(raw, metadata)
@@ -395,8 +419,9 @@ def worker(connection, job):
                         sid = store.save(raw, dict(receipt, organisation_number=subject, source_class='nav_jobs',
                             sha256=digest(raw), employer_snapshot_id=bridge_sid,
                             legal_identity_snapshot_id=state['entity_sid'],
+                            **({'evaluation_cutoff': job['cutoff']} if job.get('cutoff') else {}),
                             access_policy='https://arbeidsplassen.nav.no/vilkar-api'))
-                        state['decisions'].extend(check_nav(store, subject, sid))
+                        state['decisions'].extend(check_nav(store, subject, sid, checker=checker))
                     available_pages.clear()
                 else:
                     url = available_pages[0][1]['source_url']
@@ -405,7 +430,7 @@ def worker(connection, job):
                     if operator_proof(raw, subject, state['entity']['navn']):
                         state['operator_sid'] = sid
                     try:
-                        checked = check_web(store, subject, sid)
+                        checked = check_web(store, subject, sid, checker=checker)
                         state['decisions'].extend(checked)
                         report.setdefault('pages', []).append({'source_url': url, 'snapshot_id': sid,
                             'content_sha256': digest(raw), 'effective_url': store.open(sid)[1]['effective_url'],
@@ -417,7 +442,7 @@ def worker(connection, job):
                         next_url = available_pages[0][1]['source_url']
                         child_raw, child = snapshot(subject, route, next_url, {root_host}, robots=True)
                         try:
-                            checked = check_web(store, subject, child)
+                            checked = check_web(store, subject, child, checker=checker)
                             state['decisions'].extend(checked)
                             report.setdefault('pages', []).append({'source_url': next_url, 'snapshot_id': child,
                                 'content_sha256': digest(child_raw), 'effective_url': store.open(child)[1]['effective_url'],
@@ -455,7 +480,10 @@ def worker(connection, job):
             # Bound submitted futures and retained responses by the worker count.
             for offset in range(0, len(routes), job['config']['workers']):
                 chunk = routes[offset:offset + job['config']['workers']]
-                futures = [pool.submit(acquire, subject, route, states[subject]['entity'])
+                futures = [pool.submit(acquire, subject, route, states[subject]['entity'],
+                           tuple(d['claim']['value']['name'] for d in states[subject]['decisions']
+                                 if d['accepted'] and d['field'] == 'operating_location'
+                                 and d['claim'].get('scope') == 'registered_subunit'))
                            for subject, route in chunk]
                 exhausted = None
                 for (subject, route), future in zip(chunk, futures):
@@ -473,7 +501,22 @@ def worker(connection, job):
                     raise exhausted
 
         try:
-            execute_round([(subject, 'brreg_entity') for subject in subjects])
+            if job.get('registry'):
+                ids = acquire_batch(job['registry'], load(job['registry_receipt']), subjects, store, job['deadline'])
+                for subject in subjects:
+                    state = states[subject]
+                    try:
+                        sid = ids[subject]
+                        state['entity'] = legal_anchor(store, sid, subject, checker)
+                        state['entity_sid'] = sid
+                        state['decisions'].extend(checker.check(c, subject) for c in extract(store, sid))
+                        state['attempts'].append({'source': 'frozen_registry', 'status': 'checked',
+                            'snapshot_id': sid, 'requests': 0, 'runtime_ms': 0, 'third_party_cost_usd': 0})
+                    except (ValueError, KeyError) as exc:
+                        state['failure'] = 'Frozen identity unavailable: ' + str(exc)
+                    publish(subject)
+            else:
+                execute_round([(subject, 'brreg_entity') for subject in subjects])
             pending = {s: [r for r in ROUTE_FAMILIES if r in job['config']['enabled_sources']]
                        if states[s]['entity'] is not None else [] for s in subjects}
             while any(pending.values()):
