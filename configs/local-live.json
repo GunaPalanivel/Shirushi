@@ -5,7 +5,7 @@
   "wall_time_seconds": 900,
   "request_budget": 700,
   "third_party_cost_usd": 0,
-  "workers": 1,
+  "workers": 8,
   "per_host_concurrency": 1,
   "request_timeout_seconds": 10,
   "max_retries": 1,

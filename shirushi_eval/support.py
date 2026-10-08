@@ -65,11 +65,46 @@ class SourceAudit:
                     anchor_receipt = strict_json(self.read('receipts', receipt['ownership_anchor_snapshot_id']))
                     anchor = strict_json(self.read('objects', anchor_receipt['content_sha256']))
                     from urllib.parse import urlsplit
+                    if receipt.get('robots_snapshot_id'):
+                        from urllib.robotparser import RobotFileParser
+                        robots_receipt = strict_json(self.read('receipts', receipt['robots_snapshot_id']))
+                        robots_raw = self.read('objects', robots_receipt['content_sha256'])
+                        robots_url = 'https://' + receipt['declared_host'] + '/robots.txt'
+                        if (robots_receipt.get('source_class') != 'robots_policy'
+                                or robots_receipt.get('source_url') != robots_url
+                                or robots_receipt.get('http_status') not in (200, 404)):
+                            raise ValueError('Audit robots policy receipt mismatch')
+                        parser = RobotFileParser(robots_url)
+                        parser.parse(robots_raw.decode('utf-8').splitlines() if robots_receipt['http_status'] == 200 else [])
+                        if not parser.can_fetch('Shirushi/0.1', receipt['effective_url']):
+                            raise ValueError('Audit robots denies published page')
                     website = anchor.get('hjemmeside', '')
                     host = urlsplit(website if '://' in website else 'https://' + website).hostname
-                    if (anchor.get('organisasjonsnummer') != subject or host != receipt['declared_host']
-                            or anchor_receipt.get('source_class') != 'brreg_entity'):
+                    identity_url = 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject
+                    if (anchor.get('organisasjonsnummer') != subject
+                            or anchor_receipt.get('source_class') != 'brreg_entity'
+                            or anchor_receipt.get('organisation_number') != subject
+                            or anchor_receipt.get('http_status') != 200
+                            or anchor_receipt.get('source_url') != identity_url):
+                        raise ValueError('Audit website identity anchor mismatch')
+                    ownership_id = receipt.get('operator_snapshot_id', item['snapshot_id'])
+                    ownership_receipt = strict_json(self.read('receipts', ownership_id))
+                    ownership_raw = self.read('objects', ownership_receipt['content_sha256'])
+                    from .html_support import legal_operator, audit_html
+                    proof = legal_operator(ownership_raw, subject, anchor.get('navn', ''))
+                    if proof and (ownership_receipt.get('organisation_number') != subject
+                            or ownership_receipt.get('source_class') != 'company_owned'
+                            or ownership_receipt.get('http_status') != 200
+                            or ownership_receipt.get('robots_checked') is not True
+                            or ownership_receipt.get('ownership_anchor_snapshot_id') != receipt['ownership_anchor_snapshot_id']
+                            or urlsplit(ownership_receipt['effective_url']).hostname != receipt['declared_host']):
+                        raise ValueError('Audit operator source chain mismatch')
+                    aliases = {host, host[4:] if host and host.startswith('www.') else 'www.' + host if host else None}
+                    if receipt['declared_host'] not in aliases and not proof:
                         raise ValueError('Audit website discovery anchor mismatch')
+                    if item['extraction_method'] == 'explicit_subject_html_v1':
+                        audit_html(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw)
+                        continue
                 (audit_web if receipt['source_class'] == 'company_owned' else audit_api)(subject, claim, item, receipt, raw)
                 continue
             source = strict_json(raw)

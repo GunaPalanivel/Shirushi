@@ -12,9 +12,9 @@ This implements the production foundation of the combined 80+ plan. It is not an
 | BRREG roles | Existing source-checked registered person roles | No inferred employment; an absent role does not establish removal |
 | BRREG accounts | Revenue, operating/pre-tax/net profit, assets, equity and total/current/long-term liabilities; separate entity/group scope and reporting periods, original currency units | Missing amounts remain unknown; no PDF parser or implied all-history access |
 | BRREG subunits | Registered operating sites with exact parent attribution | First bounded page only; further pagination remains a recall opportunity |
-| Company-owned pages | Exact-identifier JSON-LD descriptions, website, jobs and dated articles | Registry website anchor plus robots checks; same-host bounded link discovery; no broad free-text extraction or third-party jobs/news feed |
+| Company-owned pages | Exact-subject JSON-LD plus literal HTML products/services and dated activity | Registry discovery hints or conditional search; explicit legal operator proof for discovered domains/HTML; each HTML content claim names the legal subject; bounded same-host links; no broad jobs/news feed |
 
-The effective network concurrency is one. Configured ceilings are not inferred quotas or throughput guarantees. Requests include attempts that fail DNS/connect, retries, redirects and robots. Body bytes are charged while reading; all routes share the ledger. CPU/memory settings for official isolation are not implemented. Paid API cost is zero because no paid route is activated.
+One supervised process uses up to eight bounded I/O threads by default. A single collector owns persisted snapshots, verification, planner updates and every Pipe event. Per-host concurrency defaults to one; conventional www redirects are scoped explicitly. Actual peak network concurrency is measured separately from the configured ceiling. Configured ceilings are not inferred quotas or throughput guarantees. Requests include attempts that fail DNS/connect, retries, redirects and robots. Body bytes are reserved atomically before socket reads; unused reservations are released. Interrupted reads conservatively charge the reserved cap. All routes share the request/byte/cost ledger and cancellation signal. Locks are released during network waits. CPU/memory settings for official isolation are not implemented. Paid API cost is zero by default. The optional Brave route charges $0.005 per attempt, including retries; it requires a declared paid budget, account rate and plan-rights receipt plus a server-side BRAVE_SEARCH_API_KEY. Search responses remain transient; only independently re-fetched company pages can support claims. A model key is not a search key.
 
 ## Manual trace and invariants
 
@@ -28,7 +28,7 @@ The effective network concurrency is one. Configured ceilings are not inferred q
 
 | Counterexample | Expected behavior |
 |---|---|
-| Redirect to loopback or another host | Refuse before connecting |
+| Redirect to loopback or unrelated host | Refuse before connecting; only a root/www alias pair is explicitly eligible for website acquisition |
 | DNS includes public and private addresses | Refuse the entire destination |
 | Budget exception inherits `OSError` | Propagate exhaustion, never retry it |
 | Account row belongs to a subsidiary | Reject under the parent's profile |
@@ -52,3 +52,35 @@ The profile UI is escaped static HTML with search, comparison, accessible labels
 Before promoting adaptive routing, compare fixed/adaptive with identical adapters, source cutoff, cache conditions and global budgets on independent cohorts. Record per-family company/fact denominators, false attribution, unsupported finance, costs, failures and abstentions. Retain fixed routing if improvement disappears on validation. PDF extraction, broader web coverage, source-origin fusion gains, complete pagination, representative recall labels, browser acceptance and official calibration remain subsequent gates.
 
 Supplied organisation JSONL retains its 2 MiB local input bound. Evidence-rich output and prior state use a separate 128 MiB local read bound; larger artifacts are refused. These file limits are not official CPU/memory/resource quotas. See [the real-run correction](financial-coverage.md#real-run-correction).
+
+## PR3 execution evidence and pending coverage gate
+
+See [the predeclared PR3 gates](pr3-verified-external-coverage.md). Frozen
+100-company development and validation inputs are committed under
+`benchmarks/external-coverage`; they come from the hash-verified 411,160-row
+eligible universe, with no selected identity or known-host overlap. Unknown
+corporate-group relationships remain a sampling limitation. They are development
+fixtures, never an official input selector.
+
+`tools/validate_external_run.py` audits source support and family company counts
+on each frozen cohort. It deliberately reports paired gain and official score
+as null, and its merge gate as NOT_ESTABLISHED while independently reviewed
+reference labels are missing. CI success does not close that gate.
+
+`tools/validate_execution_scale.py` checks synthetic 100/300/1500-company ordered
+outputs and state readers. The local 1500 run round-tripped 94,716,000 bytes
+under the 128 MiB state bound. Padding is explicitly synthetic, not source
+evidence. These timings measure local logic and serialization, not live network
+throughput or official CPU/memory readiness. Full four-request BRREG acquisition
+at 1500 companies still has a 1499.75-second spacing floor under the current
+0.25-second policy, before network latency; default 900-second settings do not
+establish that scenario.
+
+Optional discovery uses `--discovery-access-receipt PATH`. The JSON receipt must
+identify provider `brave`, the documented terms URL, a nonempty plan-rights source,
+RFC3339 reviewed_at, permits_company_discovery_and_evaluation=true, the actual
+account request_interval_seconds (>=0.02), max_candidates (1..3) and
+max_queries_per_company (1..2). Do not invent plan rights. Supply the key only
+through the environment. The CLI binds the receipt hash in the run report.
+No discovery provider credentials or account rights have been established in
+this workspace, so hosted CI currently exercises the registry-hint path.

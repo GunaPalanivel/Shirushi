@@ -49,7 +49,7 @@
         "terms_and_robots_receipt",
         "safe_fetcher"
       ],
-      "scope": "Declared registry website is a discovery lead only; exact JSON-LD organization identifiers required for published facts",
+      "scope": "Registry URLs are leads; exact JSON-LD subjects or explicit legal operator HTML evidence with separately attributed content. Discovery optionally uses one access-receipted Brave API; snippets are never evidence.",
       "rate_policy": "Configured per-host spacing and bounded pages; no authenticated or blocked-source bypass"
     },
     {
@@ -65,9 +65,9 @@
     },
     {
       "id": "search_api",
-      "status": "disabled",
+      "status": "conditional",
       "network": true,
-      "basis": "Free-first; provider/access/cost not selected",
+      "basis": "One implemented Brave API adapter; activation requires declared account rate, paid budget, credential and plan-rights receipt. Transient URLs only; no stored snippets.",
       "scope": "Discovery only; snippets never publication evidence"
     },
     {
@@ -108,7 +108,7 @@
       "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
       "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
       "scope": "Exact entity, registered activity and declared website discovery lead",
-      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+      "rate_policy": "Bounded concurrent I/O with atomic ledger, one active request per host by default, configured spacing and bounded retry; local settings are not official quotas."
     },
     {
       "id": "brreg_roles",
@@ -117,7 +117,7 @@
       "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
       "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
       "scope": "Active registered person roles",
-      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+      "rate_policy": "Bounded concurrent I/O with atomic ledger, one active request per host by default, configured spacing and bounded retry; local settings are not official quotas."
     },
     {
       "id": "brreg_accounts",
@@ -126,7 +126,7 @@
       "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
       "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
       "scope": "Entity and group annual revenue with separate periods and scopes",
-      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+      "rate_policy": "Bounded concurrent I/O with atomic ledger, one active request per host by default, configured spacing and bounded retry; local settings are not official quotas."
     },
     {
       "id": "brreg_subunits",
@@ -135,7 +135,7 @@
       "basis": "BRREG open data documentation under NLOD; exact endpoint and subject validation",
       "terms_url": "https://data.brreg.no/enhetsregisteret/api/dokumentasjon/en/index.html",
       "scope": "Registered operating locations attributed through overordnetEnhet",
-      "rate_policy": "Single network worker, configured spacing and bounded retry; local rate is not an official service quota"
+      "rate_policy": "Bounded concurrent I/O with atomic ledger, one active request per host by default, configured spacing and bounded retry; local settings are not official quotas."
     }
   ]
 }

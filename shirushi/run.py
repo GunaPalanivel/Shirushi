@@ -46,6 +46,7 @@ def main(argv=None):
     parser.add_argument('--registry', type=Path)
     parser.add_argument('--registry-receipt', type=Path)
     parser.add_argument('--live', action='store_true')
+    parser.add_argument('--discovery-access-receipt', type=Path)
     parser.add_argument('--showcase-dir', type=Path)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--previous', type=Path)
@@ -56,7 +57,7 @@ def main(argv=None):
     output, report_path = args.output.resolve(), args.report.resolve()
     inputs = [args.organisations, args.config]
     inputs += [p for p in (args.registry, args.registry_receipt) if p]
-    inputs += [p for p in (args.previous, args.source_manifest) if p]
+    inputs += [p for p in (args.previous, args.source_manifest, args.discovery_access_receipt) if p]
     store_path = (args.store or output.parent / 'snapshots').resolve()
     forbidden = {p.resolve() for p in inputs}
     if (output == report_path or output in forbidden or report_path in forbidden
@@ -100,6 +101,18 @@ def main(argv=None):
         if args.showcase_dir and (args.showcase_dir.exists() or args.showcase_dir.resolve() in forbidden
                                   or args.showcase_dir.resolve() in output.parents or args.showcase_dir.resolve() in report_path.parents):
             raise ValueError('Showcase directory must be new and distinct from inputs/output/report')
+        discovery = None
+        if args.discovery_access_receipt:
+            if not args.live or 'company_owned' not in config['enabled_sources']:
+                raise ValueError('Discovery requires the live company-owned route')
+            from .discovery import access_receipt, COST_PER_ATTEMPT_USD
+            discovery = access_receipt(args.discovery_access_receipt)
+            if config['third_party_cost_usd'] < COST_PER_ATTEMPT_USD:
+                raise ValueError('Discovery requires a declared paid-attempt budget')
+            import os
+            if not os.environ.get('BRAVE_SEARCH_API_KEY'):
+                raise ValueError('BRAVE_SEARCH_API_KEY is unavailable')
+            report['discovery_access_receipt'] = discovery
         sources = []
         if args.source_manifest:
             sources = load(args.source_manifest)
@@ -130,7 +143,7 @@ def main(argv=None):
         job = {'subjects': subjects, 'registry': args.registry, 'registry_receipt': args.registry_receipt,
                'store': store_path, 'previous': previous, 'sources': sources, 'source_manifest': args.source_manifest,
                'max_response_bytes': config['max_response_bytes'], 'enabled_sources': config['enabled_sources'],
-               'deadline': deadline, 'started_at': started, 'run_id': args.run_id, 'config': config}
+               'deadline': deadline, 'started_at': started, 'run_id': args.run_id, 'config': config, 'discovery': discovery}
         if args.live:
             report['scope'] = 'live_local_batch'
     except (ValueError, OSError, KeyError, TypeError) as exc:

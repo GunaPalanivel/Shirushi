@@ -20,7 +20,9 @@ def text(value):
 def summary(envelope):
     available = [c for c in envelope['claims'] if c['availability'] == 'available']
     name = next((c['value'] for c in available if c['field'] == 'legal_name'), envelope['organisation_number'])
-    description = next((c for c in available if c['field'] in ('business_description', 'registered_activity')), None)
+    description = next((c for c in available if c['field'] in ('business_description', 'product_service')), None)
+    if description is None:
+        description = next((c for c in available if c['field'] == 'registered_activity'), None)
     lines = [text(name) + ' (' + envelope['organisation_number'] + ').']
     if description:
         label = 'Registered activity: ' if description['field'] == 'registered_activity' else 'Supported description: '

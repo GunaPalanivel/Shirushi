@@ -4,7 +4,7 @@ Evidence-checked company research for the Signalpost challenge.
 
 Start with the [engineering plan](docs/engineering-plan.md), [rubric-to-standards mapping](docs/engineering-standards.md), [company envelope](docs/company-envelope.md), and [source policy](docs/source-policy.md).
 
-Current implementation: [bounded offline batch execution](docs/batch-runner-hardening.md) plus [supervised live retrieval](docs/live-retrieval.md) and [financial coverage validation](docs/financial-coverage.md), exact-source evidence checks, canonical multi-period claims, semantic refresh, grounded static profiles and a separate source-support audit. Fixed routing remains the default; the adaptive scheduler has no demonstrated recall advantage yet. Original research stays under ignored `.idea/buildDocs/`.
+Current implementation: [bounded offline batch execution](docs/batch-runner-hardening.md) plus [supervised live retrieval](docs/live-retrieval.md) and [financial coverage validation](docs/financial-coverage.md), exact-source evidence checks, canonical multi-period claims, semantic refresh, grounded static profiles and a separate source-support audit. [PR3 external coverage](docs/pr3-verified-external-coverage.md) adds bounded concurrent I/O, explicit legal operator evidence and independently audited literal HTML. Its coverage promotion gate remains open. Fixed routing remains the default; the adaptive scheduler has no demonstrated recall advantage yet. Historical research and real-company captures remain outside tracked code.
 
 Run a fresh public 100-company smoke test and independent retained-source audit:
 
@@ -30,3 +30,15 @@ Run the contract checks with Python 3.12.12:
 ```
 
 See [CONTRIBUTING](CONTRIBUTING.md) for setup and change validation, and [SECURITY](SECURITY.md) for the current security posture. CI pins Python 3.12.12 on Linux and 3.12.10 for Windows compatibility. The fresh-source job exercises live acquisition on Linux. Review the commit's hosted checks for results. A project licence remains to be selected before an OSS release.
+
+Run external source support on the frozen development cohort:
+
+```bash
+python -X dev -W error tools/validate_external_run.py --cohort development --output-dir out/external-development
+```
+
+Use `--cohort validation` for the disjoint cohort. These report audited source
+coverage and failures, not official recall. Run local execution/state stress with
+`python tools/validate_execution_scale.py --output-dir out/execution-scale`.
+Search discovery is optional and requires the access receipt, server-side key
+and paid budget described in [live retrieval](docs/live-retrieval.md).

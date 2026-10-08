@@ -1,0 +1,16 @@
+{
+  "seed": 20261007,
+  "algorithm": "five-way-largest-remainder-host-representative-v1",
+  "population": 411160,
+  "selected": 500,
+  "registry_sha256": "1c89710e5b01f8617e86d09fbdff4a52f2f8dbbba297e74f7164b5984f5a0384",
+  "development_sha256": "f0e6d0aad86e2c31c32bea6ae3946bae0f74f326ec3190619d50a10b9d417a2f",
+  "validation_sha256": "3565e1d1717655fe64ab2bb97dddf8b5a88468e6b6b3cfb2cfd2f0ca727dd9c5",
+  "known_corporate_groups_available": false,
+  "host_group_policy": "One representative per known registered host; ownership is not inferred.",
+  "scope": "Development fixtures only; never selects official inputs",
+  "development_count": 100,
+  "validation_count": 100,
+  "reference_labels_complete": false,
+  "official_score": null
+}
