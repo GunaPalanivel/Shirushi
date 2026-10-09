@@ -20,7 +20,7 @@ from .fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, safe_url,
 from .planner import Planner, ROUTE_FAMILIES
 from .roles import check_role, propose_roles
 from .snapshots import SnapshotStore, digest
-from .web_sources import check_web, content_links, locale_links, page_links, sitemap_links
+from .web_sources import IDENTITY_LINK, LEGAL_LINK, check_web, content_links, locale_links, page_links, sitemap_links
 from .nav_jobs import NavFeed, check_nav
 
 
@@ -71,6 +71,10 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
             failures.append({'url': url, 'reason': str(exc), 'availability': exc.availability})
             return None
 
+    def operator(page):
+        return operator_proof(page[0], subject, entity['navn'], entity.get('hjemmeside', ''),
+                              page[1]['effective_url'])
+
     # One declared candidate first; search also runs when that lead cannot be
     # legally attributed. Transient candidate text never becomes evidence.
     for phase in range(2):
@@ -92,7 +96,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
             host = {urlsplit(url).hostname}
             links = page_links(root[0], url)
             locale_url = url
-            owner = root if operator_proof(root[0], subject, entity['navn']) else None
+            owner = root if operator(root) else None
             if owner is None:
                 # Search can land on a foreign locale. Follow one explicitly
                 # linked Norwegian alternate before spending pages on its terms.
@@ -102,13 +106,13 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                         local.append(page)
                         locale_url = page[1]['effective_url']
                         links = page_links(page[0], page[1]['effective_url'])
-                        if operator_proof(page[0], subject, entity['navn']):
+                        if operator(page):
                             owner = page
                 if owner is not None:
                     identity_links = []
                 else:
                     identity_links = [link for link in links if re.search(
-                        r'legal|jurid|terms|vilk|imprint|kontakt|contact|about|om-oss', urlsplit(link).path, re.I)]
+                        IDENTITY_LINK, urlsplit(link).path, re.I)]
                 for _ in range(2):
                     if not identity_links:
                         break
@@ -116,11 +120,11 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                     page = retrieve(link, host)
                     if page:
                         local.append(page)
-                        if operator_proof(page[0], subject, entity['navn']):
+                        if operator(page):
                             owner = page
                             break
                         identity_links = [child for child in page_links(page[0], page[1]['effective_url'])
-                                          if child not in seen and re.search(r'legal|jurid|terms|vilk|imprint',
+                                          if child not in seen and re.search(LEGAL_LINK,
                                                                             urlsplit(child).path, re.I)] + identity_links
             if owner is None and len(attempted) < max_pages and len(metadata_seen) < 2:
                 # Some seller terms are absent from navigation but explicitly
@@ -143,7 +147,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                             page = retrieve(link, host)
                             if page:
                                 local.append(page)
-                                if operator_proof(page[0], subject, entity['navn']):
+                                if operator(page):
                                     owner = page
                                     break
                             if len(attempted) >= max_pages:
@@ -158,7 +162,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                 if phase == 0:
                     pages.extend(local)
                 continue
-            proof = operator_proof(owner[0], subject, entity['navn'])
+            proof = operator(owner)
             prefix = (urlsplit(owner[1]['effective_url']).path.rsplit('/', 1)[0] + '/'
                       if proof['kind'] == 'seller_terms' else '/')
             scoped_home = 'https://' + next(iter(host)) + prefix
@@ -431,15 +435,18 @@ def worker(connection, job):
                 else:
                     url = available_pages[0][1]['source_url']
                     raw, sid = snapshot(subject, route, url, website_hosts(urlsplit(url).hostname), robots=True)
-                    root_host = urlsplit(store.open(sid)[1]['effective_url']).hostname
-                    if operator_proof(raw, subject, state['entity']['navn']):
+                    root_receipt = store.open(sid)[1]
+                    root_host = urlsplit(root_receipt['effective_url']).hostname
+                    root_proof = operator_proof(raw, subject, state['entity']['navn'],
+                        state['entity'].get('hjemmeside', ''), root_receipt['effective_url'])
+                    if root_proof:
                         state['operator_sid'] = sid
                     try:
                         checked = check_web(store, subject, sid, checker=checker)
                         state['decisions'].extend(checked)
                         report.setdefault('pages', []).append({'source_url': url, 'snapshot_id': sid,
                             'content_sha256': digest(raw), 'effective_url': store.open(sid)[1]['effective_url'],
-                            'identity_proof': bool(operator_proof(raw, subject, state['entity']['navn'])),
+                            'identity_proof': bool(root_proof),
                             'supported_fields': sorted({d['field'] for d in checked})})
                     except ValueError as exc:
                         report.setdefault('page_failures', []).append({'url': url, 'reason': str(exc)})
@@ -451,7 +458,8 @@ def worker(connection, job):
                             state['decisions'].extend(checked)
                             report.setdefault('pages', []).append({'source_url': next_url, 'snapshot_id': child,
                                 'content_sha256': digest(child_raw), 'effective_url': store.open(child)[1]['effective_url'],
-                                'identity_proof': bool(operator_proof(child_raw, subject, state['entity']['navn'])),
+                                'identity_proof': bool(operator_proof(child_raw, subject, state['entity']['navn'],
+                                    state['entity'].get('hjemmeside', ''), store.open(child)[1]['effective_url'])),
                                 'supported_fields': sorted({d['field'] for d in checked})})
                         except ValueError as exc:
                             report.setdefault('page_failures', []).append({'url': next_url, 'reason': str(exc)})

@@ -78,6 +78,12 @@ class ExternalHTMLTests(unittest.TestCase):
             self.assertEqual([d['field'] for d in decisions], ['verified_website'])
             self.audit(decisions)
 
+    def test_empty_style_attribute_does_not_discard_visible_company_facts(self):
+        html = '<div style><p>Unrelated introduction.</p></div>' + self.footer()
+        decisions = check_web(self.store, SUBJECT, self.save(html))
+        self.assertEqual([d['field'] for d in decisions], ['verified_website'])
+        self.audit(decisions)
+
     def test_dated_activity_rejects_future_invalid_and_multiple_dates(self):
         for text in ('2099-01-01', '2026-02-30', '2026-10-01 and 2026-10-02'):
             decisions = check_web(self.store, SUBJECT, self.save(self.footer() +
@@ -112,6 +118,74 @@ class ExternalHTMLTests(unittest.TestCase):
         html = b'<a href="/products">Products</a><a href="/services">Services</a><a href="https://other.com/products">Other</a>'
         self.assertEqual(page_links(html, 'https://example.com/'),
                          ['https://example.com/products', 'https://example.com/services'])
+
+    def registered_site(self):
+        raw = json.dumps({'organisasjonsnummer': SUBJECT, 'navn': NAME,
+                          'hjemmeside': 'www.example.com'}).encode()
+        _, receipt = self.store.open(self.anchor)
+        self.anchor = self.store.save(raw, dict(receipt, sha256=digest(raw)))
+
+    def controller(self):
+        return ('<p>Example Pumps AS (Example Road 1), ved daglig leder, er '
+                'behandlingsansvarlig for behandling av personopplysninger i forbindelse '
+                'med drift og vedlikehold av example.com.</p>')
+
+    def test_registered_site_and_explicit_domain_operator_support_content(self):
+        self.registered_site()
+        owner = self.save(self.controller(), source_url='https://example.com/personvern',
+                          effective_url='https://example.com/personvern')
+        decisions = check_web(self.store, SUBJECT, owner)
+        self.assertEqual([d['field'] for d in decisions], ['verified_website'])
+        child = self.save('<p>Example Pumps AS er et moderne konsulentselskap som leverer IT-systemer.</p>',
+                          operator_snapshot_id=owner)
+        decisions += check_web(self.store, SUBJECT, child)
+        self.assertEqual([d['field'] for d in decisions], ['verified_website', 'business_description'])
+        self.audit(decisions)
+
+    def test_controller_alone_does_not_prove_website_operation(self):
+        self.assertIsNone(operator_proof(self.controller().encode(), SUBJECT, NAME))
+        self.registered_site()
+        for html in (self.controller().replace('example.com', 'other.com'),
+                     self.controller().replace('example.com', 'example.com.evil.test'),
+                     self.controller().replace('er behandlingsansvarlig', 'er ikke behandlingsansvarlig'),
+                     self.controller().replace('Example Pumps AS', 'Parent AS'),
+                     self.controller().replace('drift og vedlikehold av example.com', 'kundedata'),
+                     self.controller().replace('example.com.', 'example.com på vegne av Parent AS.'),
+                     self.controller().replace('</p>', ' Org.nr. 990888213</p>'),
+                     self.controller() + '<footer>Parent AS. Org.nr. 990888213</footer>',
+                     '<div hidden>' + self.controller() + '</div>'):
+            self.assertEqual(check_web(self.store, SUBJECT, self.save(html)), [])
+        wrong_host = self.save(self.controller(), source_url='https://wrong.com/',
+                               effective_url='https://wrong.com/', declared_host='wrong.com')
+        with self.assertRaises(ValueError):
+            check_web(self.store, SUBJECT, wrong_host)
+
+    def test_independent_audit_rejects_registered_site_controller_on_wrong_host(self):
+        self.registered_site()
+        good = check_web(self.store, SUBJECT, self.save(self.controller()))[0]
+        sid = self.save(self.controller(), source_url='https://wrong.com/',
+                        effective_url='https://wrong.com/', declared_host='wrong.com')
+        _, receipt = self.store.open(sid)
+        bad = copy.deepcopy(good)
+        bad['evidence'].update(snapshot_id=sid, source_url=receipt['source_url'],
+                               content_sha256=receipt['content_sha256'])
+        with self.assertRaises(ValueError):
+            self.audit([bad])
+
+    def test_company_definition_rejects_customer_parent_and_negation(self):
+        for content in ('Example Pumps AS er en kunde av et konsulentselskap.',
+                        'Example Pumps AS er ikke et konsulentselskap.',
+                        'Customer Example Pumps AS. OtherExample Pumps AS er et moderne konsulentselskap.',
+                        'Parent AS er et konsulentselskap for Example Pumps AS.'):
+            decisions = check_web(self.store, SUBJECT, self.save(self.footer() + '<p>' + content + '</p>'))
+            self.assertEqual([d['field'] for d in decisions], ['verified_website'])
+            self.audit(decisions)
+
+    def test_observed_legal_and_contact_forms_are_retrieval_leads(self):
+        paths = ['/conditionsofuse', '/personvernerklaering/', '/contactus', '/privacy-notice', '/betingelser']
+        html = ''.join('<a href="' + path + '">Read</a>' for path in paths).encode()
+        self.assertEqual(set(page_links(html, 'https://example.com/')),
+                         {'https://example.com' + path for path in paths})
 
     def test_character_locators_preserve_unicode_and_crlf(self):
         html = '<div>Norwegian \u00e5 and separator \u2028</div>\r\n' + self.footer() + '\r\n<p>Example Pumps AS offers valves.</p>'

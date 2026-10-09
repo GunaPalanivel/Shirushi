@@ -12,6 +12,9 @@ from .fetch import safe_url, website_candidate, website_hosts
 from .snapshots import digest
 from .identity import legal_anchor
 
+LEGAL_LINK = r'vilk|terms|conditions|betingelser|legal|jurid|imprint|privacy|personvern'
+IDENTITY_LINK = LEGAL_LINK + r'|kontakt|contact|about|om-oss'
+
 
 class Page(HTMLParser):
     def __init__(self, raw):
@@ -136,7 +139,8 @@ def check_web(store, subject, sid, checker=None):
     ownership_sid = receipt.get('operator_snapshot_id', sid)
     ownership_raw, ownership_receipt = store.open(ownership_sid)
     legal_name = anchor.get('navn', '')
-    proof = operator_proof(ownership_raw, subject, legal_name)
+    proof = operator_proof(ownership_raw, subject, legal_name, anchor.get('hjemmeside', ''),
+                           ownership_receipt['effective_url'])
     if proof and (ownership_receipt.get('organisation_number') != subject
                   or ownership_receipt.get('source_class') != 'company_owned'
                   or ownership_receipt.get('robots_checked') is not True
@@ -243,8 +247,8 @@ def sitemap_links(raw, url, prefix):
         if urlsplit(candidate).path.startswith(prefix) and candidate not in result:
             result.append(candidate)
     if kind == 'urlset':
-        result = [u for u in result if re.search(r'vilk|terms|legal|jurid|imprint|kontakt|contact', urlsplit(u).path, re.I)]
-        result.sort(key=lambda u: not bool(re.search(r'vilk|terms', urlsplit(u).path, re.I)))
+        result = [u for u in result if re.search(IDENTITY_LINK, urlsplit(u).path, re.I)]
+        result.sort(key=lambda u: not bool(re.search(r'vilk|terms|conditions|betingelser', urlsplit(u).path, re.I)))
     return kind, result
 
 
@@ -252,7 +256,7 @@ def page_links(raw, url):
     result = []
     for link in Page(raw).links:
         candidate = urljoin(url, link)
-        if not re.search(r'product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|about|om-oss|kontakt|vilk|terms|legal|jurid|imprint|aktuelt|rekrutter', candidate, re.I):
+        if not re.search(IDENTITY_LINK + r'|product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|aktuelt|rekrutter', urlsplit(candidate).path, re.I):
             continue
         try:
             candidate = safe_url(candidate, {urlsplit(url).hostname})
@@ -263,7 +267,7 @@ def page_links(raw, url):
     # Identity evidence first, then content, never DOM navigation order.
     def priority(link):
         path = urlsplit(link).path.lower()
-        return (0 if re.search(r'vilk|terms|legal|jurid|imprint', path) else
+        return (0 if re.search(LEGAL_LINK, path) else
                 1 if re.search(r'produkt|product|service|tjenest', path) else
                 2 if re.search(r'job|career|stilling|rekrutter|news|nyhet|aktuelt', path) else 3)
     return sorted(result, key=priority)

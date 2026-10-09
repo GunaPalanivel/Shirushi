@@ -88,7 +88,8 @@ class SourceAudit:
                     ownership_receipt = strict_json(self.read('receipts', ownership_id))
                     ownership_raw = self.read('objects', ownership_receipt['content_sha256'])
                     from .html_support import legal_operator, audit_html, seller_contract
-                    proof = legal_operator(ownership_raw, subject, anchor.get('navn', ''))
+                    proof = legal_operator(ownership_raw, subject, anchor.get('navn', ''), website,
+                                           ownership_receipt['effective_url'])
                     if proof and (ownership_receipt.get('organisation_number') != subject
                             or ownership_receipt.get('source_class') != 'company_owned'
                             or ownership_receipt.get('http_status') != 200
@@ -104,7 +105,8 @@ class SourceAudit:
                         if not urlsplit(receipt['effective_url']).path.startswith(prefix):
                             raise ValueError('Audit page escapes verified seller path')
                     if item['extraction_method'] == 'explicit_subject_html_v1':
-                        audit_html(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw)
+                        audit_html(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw,
+                                   website, ownership_receipt['effective_url'])
                         continue
                     if item['extraction_method'] == 'scoped_catalogue_html_v2':
                         from .html_support import audit_catalogue
