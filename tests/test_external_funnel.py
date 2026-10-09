@@ -14,6 +14,51 @@ SUBJECT = '923609016'
 
 
 class ExternalFunnelTests(unittest.TestCase):
+    def test_registry_operator_proof_reaches_content_collector_and_refresh(self):
+        config = load(ROOT / 'configs/local-live.json')
+        config.update(enabled_sources=['brreg_entity', 'company_owned'], min_host_interval_seconds=0,
+                      max_retries=0, max_pages_per_company=3)
+        frames, requests = [], []
+        class Connection:
+            def send(self, frame): frames.append(frame)
+            def close(self): pass
+        def transport(fetcher, url, *args):
+            requests.append(url)
+            if 'data.brreg.no' in url:
+                body = json.dumps({'organisasjonsnummer': SUBJECT, 'navn': 'Example Pumps AS',
+                    'hjemmeside': 'www.example.com', '_links': {'self': {'href': url}}}).encode()
+                kind = 'application/json'
+            elif url.endswith('robots.txt'):
+                body, kind = b'User-agent: *\nAllow: /', 'text/plain'
+            elif url.endswith('/personvern'):
+                body = (b'<p>Example Pumps AS er behandlingsansvarlig for behandling av personopplysninger '
+                        b'i forbindelse med drift og vedlikehold av example.com.</p>')
+                kind = 'text/html'
+            else:
+                body = (b'<p>Example Pumps AS er et moderne konsulentselskap som leverer IT-systemer.</p>'
+                        b'<a href="/personvern">Privacy</a>')
+                kind = 'text/html'
+            fetcher.budget.consume(len(body))
+            return 200, {'content-type': kind}, body
+        with tempfile.TemporaryDirectory() as root, patch('shirushi.fetch.Fetcher._request', transport):
+            job = {'store': Path(root), 'subjects': [SUBJECT], 'previous': {}, 'config': config,
+                   'deadline': time.monotonic() + 5, 'started_at': '2026-10-08T08:00:00Z',
+                   'run_id': 'registry-operator-funnel'}
+            for iteration in range(2):
+                worker(Connection(), job)
+                self.assertFalse([f for f in frames if f[0] in ('fatal', 'invalid_previous')])
+                result = next(f[2]['envelope'] for f in frames if f[0] == 'result')
+                external = [c for c in result['claims'] if c['availability'] == 'available'
+                            and c.get('scope') == 'company_owned_html']
+                self.assertEqual({c['field'] for c in external}, {'verified_website', 'business_description'})
+                audit = SourceAudit(root, [SUBJECT])
+                for claim in result['claims']:
+                    audit.claim(SUBJECT, claim, {e['id']: e for e in result['evidence']})
+                self.assertEqual(result['changes'], [])
+                job.update(previous={SUBJECT: result}, deadline=time.monotonic() + 5)
+                frames.clear()
+            self.assertEqual(len(requests), 8)  # Entity, robots, homepage, privacy on each run.
+
     def test_no_registry_website_discovers_two_content_families_and_refreshes(self):
         config = load(ROOT / 'configs/local-live.json')
         config.update(enabled_sources=['brreg_entity', 'company_owned'], third_party_cost_usd=0.02,

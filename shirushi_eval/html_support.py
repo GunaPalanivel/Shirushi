@@ -27,7 +27,7 @@ class Document(HTMLParser):
         hidden = any(node['hidden'] for node in self.parents)
         hidden = hidden or tag in ('style', 'script', 'template', 'noscript') or 'hidden' in attrs
         hidden = hidden or attrs.get('aria-hidden') == 'true' or bool(re.search(
-            r'(?:display\s*:\s*none|visibility\s*:\s*hidden)', attrs.get('style', ''), re.I))
+            r'(?:display\s*:\s*none|visibility\s*:\s*hidden)', attrs.get('style') or '', re.I))
         if tag in ('br', 'hr', 'img', 'input', 'meta', 'link', 'source', 'wbr', 'area', 'base', 'embed', 'param', 'track', 'col'):
             self.handle_data(' ')
             return
@@ -58,7 +58,7 @@ def document(raw):
     return Document(raw)
 
 
-def legal_operator(raw, subject, name):
+def legal_operator(raw, subject, name, registry_url='', page_url=''):
     for node in document(raw).nodes:
         if node['tag'] not in ('footer', 'address', 'p') or len(node['text']) > 1500 or not name:
             continue
@@ -67,14 +67,28 @@ def legal_operator(raw, subject, name):
             continue
         numbers = re.findall(r'(?:org(?:anisasjons)?\.?\s*(?:nr|nummer)\.?|organi[sz]ation\s+(?:number|no\.?))\s*:?\s*(?:NO\s*)?([0-9]{3}[ .]?[0-9]{3}[ .]?[0-9]{3})(?![0-9])', value, re.I)
         numbers = {re.sub(r'\D', '', number) for number in numbers}
-        if numbers != {subject}:
-            continue
-        if re.search(r'(?:copyright|\u00a9)\s*(?:[0-9]{4}[\s.,-]*)?(?:by\s+)?' + re.escape(name) + r'(?!\w)|'
+        if numbers == {subject} and re.search(r'(?:copyright|\u00a9)\s*(?:[0-9]{4}[\s.,-]*)?(?:by\s+)?' + re.escape(name) + r'(?!\w)|'
             r'(?:website|site|nettsted).{0,40}(?:operated|owned|drives|eies).{0,30}' + re.escape(name) + r'(?!\w)|'
             r'utgiver\s*:?\s*' + re.escape(name) + r'(?!\w)', value, re.I):
             return node
-        if seller_contract(value, name):
+        if numbers == {subject} and seller_contract(value, name):
             return node
+        if registry_url and page_url and node['tag'] == 'p':
+            from urllib.parse import urlsplit
+            registered = urlsplit(registry_url if '://' in registry_url else 'https://' + registry_url).hostname
+            actual = urlsplit(page_url).hostname
+            if not registered or not actual or registered.removeprefix('www.') != actual.removeprefix('www.'):
+                continue
+            # Independently reconstruct the narrow named operator statement.
+            prefix = re.escape(name) + r'(?:\s*\([^)]{1,160}\))?(?:\s*,?\s+ved\s+[^,.]{1,80},?)?\s+er\s+'
+            controller = re.search(r'(?<!\w)' + prefix + r'behandlingsansvarlig\s+for\s+[^.]{1,400}'
+                r'\bdrift\s+og\s+vedlikehold\s+av\s+(?:www\.)?' + re.escape(actual.removeprefix('www.')) +
+                r'(?![\w-]|\.[\w-])', value, re.I)
+            if controller and not re.search(r'\b(?:ikke|not|vegne|databehandler|processor|kunde\w*)\b', value, re.I):
+                all_numbers = re.findall(r'(?:org(?:anisasjons)?\.?\s*(?:nr|nummer)\.?|organi[sz]ation\s+(?:number|no\.?))\s*:?\s*(?:NO\s*)?([0-9]{3}[ .]?[0-9]{3}[ .]?[0-9]{3})(?![0-9])',
+                    ' '.join(n['text'] for n in document(raw).nodes), re.I)
+                if not {re.sub(r'\D', '', number) for number in all_numbers} - {subject}:
+                    return node
     return None
 
 
@@ -85,8 +99,8 @@ def seller_contract(value, name):
             r'(?:and\s+(?:(?:their|its|our|the)\s+)?customers?|og\s+(?:(?:deres|v\u00e5re|sine)\s+)?kund\w*)\b', value, re.I))
 
 
-def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
-    proof = legal_operator(ownership_raw, subject, legal_name)
+def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw, registry_url='', ownership_url=''):
+    proof = legal_operator(ownership_raw, subject, legal_name, registry_url, ownership_url)
     if proof is None:
         raise ValueError('Audit HTML lacks legal operator evidence')
     location = item['locator']
@@ -101,7 +115,7 @@ def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
     text = node['text']
     field = claim['field']
     if field == 'verified_website':
-        if node != legal_operator(raw, subject, legal_name) or location.get('operator') is not True:
+        if node != legal_operator(raw, subject, legal_name, registry_url, receipt['effective_url']) or location.get('operator') is not True:
             raise ValueError('Audit website span lacks operator evidence')
         path = '/'
         if seller_contract(text, legal_name):
@@ -112,7 +126,13 @@ def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
     else:
         if not 10 <= len(text) <= 2000 or not re.search(r'(?<!\w)' + re.escape(legal_name) + r'(?!\w)', text, re.I):
             raise ValueError('Audit HTML fact does not identify its subject')
-        if field == 'product_service':
+        if field == 'business_description':
+            if node['tag'] != 'p' or not re.search(r'(?<!\w)' + re.escape(legal_name) +
+                    r'\s+er\s+(?:en|et)\s+(?:(?:moderne|norsk|norske|ledende|lokal|lokalt|internasjonalt)\s+){0,3}'
+                    r'(?:konsulentselskap|konsulentfirma|produksjonsbedrift|produsent|leverand\u00f8r|industribedrift)\b', text, re.I):
+                raise ValueError('Audit unsupported company definition')
+            expected, family, key = text, 'business_products', None
+        elif field == 'product_service':
             if node['tag'] not in ('p', 'li') or not re.search(re.escape(legal_name) + r'\s+(?:offers|provides|supplies|manufactures|produces|tilbyr|leverer|produserer)\b', text, re.I):
                 raise ValueError('Audit unsupported product/service attribution')
             expected, family, key = text, 'business_products', hashlib.sha256(text.encode()).hexdigest()
@@ -120,7 +140,7 @@ def audit_html(subject, claim, item, receipt, raw, legal_name, ownership_raw):
             dates = re.findall(r'(?<![0-9])[0-9]{4}-[0-9]{2}-[0-9]{2}(?![0-9])', text)
             if (node['tag'] not in ('p', 'article') or len(dates) != 1 or not re.search(
                     re.escape(legal_name) + r'\s+(?:launched|opened|announced|signed|lanserte|\u00e5pnet|kunngjorde|signerte)\b', text, re.I)
-                    or date.fromisoformat(dates[0]) > date.fromisoformat(receipt['retrieved_at'][:10])):
+                    or date.fromisoformat(dates[0]) > date.fromisoformat(receipt.get('evaluation_cutoff', receipt['retrieved_at'])[:10])):
                 raise ValueError('Audit unsupported dated activity')
             expected = {'statement': text, 'activity_date': dates[0], 'source_url': receipt['effective_url']}
             family = 'jobs_dated_activity'

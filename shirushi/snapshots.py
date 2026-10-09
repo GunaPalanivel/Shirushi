@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import os
 from pathlib import Path
 
 from .contracts import loads
@@ -20,6 +21,13 @@ def canonical(value):
 class SnapshotStore:
     def __init__(self, root):
         self.root = Path(root)
+        setting = os.environ.get('SHIRUSHI_STORE_BYTE_LIMIT')
+        self.byte_limit = int(setting) if setting is not None else None
+        if self.byte_limit is not None and not 0 < self.byte_limit <= 9_000_000_000:
+            raise ValueError('Snapshot byte limit must be positive and <= 9000000000')
+        self.used = sum(p.stat().st_size for p in self.root.rglob('*') if p.is_file()) if self.byte_limit is not None else 0
+        if self.byte_limit is not None and self.used > self.byte_limit:
+            raise ValueError('Existing snapshots exceed declared byte limit')
 
     def path(self, kind, identity):
         if not isinstance(identity, str) or re.fullmatch(r'[0-9a-f]{64}', identity) is None:
@@ -30,8 +38,16 @@ class SnapshotStore:
         identity = digest(data)
         path = self.path(kind, identity)
         path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            if path.read_bytes() != data:
+                raise ValueError('Existing snapshot has been corrupted')
+            return identity
+        if self.byte_limit is not None and not path.exists() and self.used + len(data) > self.byte_limit:
+            raise ValueError('Snapshot byte limit exhausted')
         try:
             publish_new(path, data)
+            if self.byte_limit is not None:
+                self.used += len(data)
         except FileExistsError:
             if path.read_bytes() != data:
                 raise ValueError('Existing snapshot has been corrupted')

@@ -116,7 +116,7 @@ class AnySearchDiscovery:
             leads = self._candidates(subject, entity)
             return self._supplement(subject, entity, leads) if leads else self._fallback(subject, entity, 'No usable search candidate')
         except SourceUnavailable as exc:
-            if exc.availability == 'blocked':
+            if exc.availability == 'blocked' and self.error is None:
                 self.error = 'Anonymous discovery unavailable: ' + str(exc)
             leads = self._fallback(subject, entity, str(exc))
             if leads:

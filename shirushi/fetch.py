@@ -378,7 +378,7 @@ class Fetcher:
                         self.budget.set_host_interval(parts.hostname, delay)
                 except SourceUnavailable as exc:
                     if exc.availability != 'not_available':
-                        raise SourceUnavailable('Robots access could not be established', 'blocked') from exc
+                        raise SourceUnavailable('Robots access could not be established: ' + str(exc), 'blocked') from exc
                     raw, receipt = exc.response
                     parser.parse([])
                 with self.robots_condition:

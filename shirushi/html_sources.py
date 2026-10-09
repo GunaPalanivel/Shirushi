@@ -25,7 +25,7 @@ class Sections(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        style = re.sub(r'\s+', '', attrs.get('style', '').lower())
+        style = re.sub(r'\s+', '', (attrs.get('style') or '').lower())
         hidden = (any(x['hidden'] for x in self.stack) or tag in {'script', 'style', 'template', 'noscript'}
                   or 'hidden' in attrs or attrs.get('aria-hidden') == 'true'
                   or 'display:none' in style or 'visibility:hidden' in style)
@@ -65,8 +65,9 @@ def org_numbers(text):
     return {re.sub(r'[^0-9]', '', value) for value in re.findall(pattern, text, re.I)}
 
 
-def operator_proof(raw, subject, legal_name):
-    for block in Sections(raw).blocks:
+def operator_proof(raw, subject, legal_name, registry_url='', page_url=''):
+    blocks = Sections(raw).blocks
+    for block in blocks:
         text = block['text']
         operator = re.search(r'(?:copyright|\u00a9)\s*(?:[0-9]{4}[\s.,-]*)?(?:by\s+)?' + re.escape(legal_name) + r'(?!\w)|'
             r'(?:website|site|nettsted).{0,40}(?:operated|owned|drives|eies).{0,30}' + re.escape(legal_name) + r'(?!\w)|'
@@ -78,6 +79,27 @@ def operator_proof(raw, subject, legal_name):
         if (block['tag'] in {'footer', 'p', 'address'} and (operator or seller) and names(text, legal_name)
                 and org_numbers(text) == {subject} and len(text) <= 1500):
             return dict({k: block[k] for k in ('start', 'end', 'text')}, kind='seller_terms' if seller else 'operator')
+        # A controller label alone is insufficient. The registry must name this
+        # domain and the named company must explicitly operate that same domain.
+        if block['tag'] == 'p' and len(text) <= 1500 and registry_url and page_url and names(text, legal_name):
+            from urllib.parse import urlsplit
+            from .fetch import website_candidate, website_hosts
+            try:
+                registered_host = urlsplit(website_candidate(registry_url)).hostname
+                actual_host = urlsplit(page_url).hostname
+            except ValueError:
+                continue
+            if actual_host not in website_hosts(registered_host):
+                continue
+            domain = actual_host.removeprefix('www.')
+            statement = re.search(r'(?<!\w)' + re.escape(legal_name) +
+                r'(?:\s*\([^)]{1,160}\))?(?:\s*,?\s+ved\s+[^,.]{1,80},?)?\s+er\s+'
+                r'behandlingsansvarlig\s+for\s+[^.]{1,400}\bdrift\s+og\s+vedlikehold\s+av\s+'
+                r'(?:www\.)?' + re.escape(domain) + r'(?![\w-]|\.[\w-])', text, re.I)
+            # A sentence-ending dot is allowed, but not a domain suffix.
+            if statement and not re.search(r'\b(?:ikke|not|vegne|databehandler|processor|kunde\w*)\b', text, re.I):
+                if not any(org_numbers(section['text']) - {subject} for section in blocks):
+                    return dict({k: block[k] for k in ('start', 'end', 'text')}, kind='registry_operator')
     return None
 
 
@@ -116,6 +138,12 @@ def html_values(raw, subject, legal_name, url, cutoff):
             continue
         span = raw.decode('utf-8')[block['start']:block['end']]
         locator = {'html_start': block['start'], 'html_end': block['end'], 'legal_name': legal_name}
+        if block['tag'] == 'p' and re.search(r'(?<!\w)' + re.escape(legal_name) +
+                r'\s+er\s+(?:en|et)\s+(?:(?:moderne|norsk|norske|ledende|lokal|lokalt|internasjonalt)\s+){0,3}'
+                r'(?:konsulentselskap|konsulentfirma|produksjonsbedrift|produsent|leverand\u00f8r|industribedrift)\b', text, re.I):
+            if 'business_description' not in seen:
+                seen.add('business_description')
+                yield 'business_description', text, 'business_products', None, span, locator
         if block['tag'] in {'p', 'li'} and re.search(re.escape(legal_name) + r'\s+(?:offers|provides|supplies|manufactures|produces|tilbyr|leverer|produserer)\b', text, re.I):
             key = digest(text.encode())
             if ('product_service', key) not in seen:

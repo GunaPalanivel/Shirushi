@@ -15,6 +15,16 @@ SPECIFICATIONS = {
     'latest_submitted_accounts_year': ('latest_submitted_accounts', str),
 }
 
+# Independent acceptance specification. No maker projection imports.
+CSV_SPECIFICATIONS = {
+    'legal_name': ('navn', str), 'legal_form': ('organisasjonsform.kode', str),
+    'registered_employees': ('antallAnsatte', int),
+    'registered_municipality': ('forretningsadresse.kommune', str),
+    'registered_municipality_number': ('forretningsadresse.kommunenummer', str),
+    'industry_code': ('naeringskode1.kode', str), 'industry_label': ('naeringskode1.beskrivelse', str),
+    'latest_submitted_accounts_year': ('sisteInnsendteAarsregnskap', str),
+}
+
 
 def value_span(raw, target):
     """Locate a top-level JSON value token without substring or regex attribution."""
@@ -50,7 +60,8 @@ class EvidenceChecker:
 
     def verify_source(self, snapshot_id, subject):
         raw, receipt = self.store.open(snapshot_id)
-        if receipt.get('snapshot_kind') != 'registry_jsonl' or receipt.get('organisation_number') != subject:
+        expected = 'registry_' + receipt.get('dataset_format', 'jsonl')
+        if receipt.get('snapshot_kind') != expected or receipt.get('organisation_number') != subject:
             raise ValueError('Snapshot subject or kind mismatch')
         if type(receipt.get('compressed')) is not bool:
             raise ValueError('Invalid archive encoding declaration')
@@ -61,7 +72,7 @@ class EvidenceChecker:
             raise ValueError('Receipt archive identity mismatch')
         cache_key = (snapshot_id, subject)
         if cache_key not in self.proofs:
-            archive_key = (receipt['parent_sha256'], receipt['uncompressed_sha256'], receipt['compressed'])
+            archive_key = (receipt['parent_sha256'], receipt['uncompressed_sha256'], receipt['compressed'], expected)
             if archive_key not in self.archives or subject not in self.archives[archive_key]:
                 wanted = self.subjects | {subject}
                 self.archives[archive_key] = find_rows(parent, receipt, wanted, receipt['compressed'], self.deadline)
@@ -72,7 +83,7 @@ class EvidenceChecker:
                 raise ValueError('Selected bytes are not the declared registry row')
             self.proofs[cache_key] = True
         row = loads(raw)
-        if row.get('organisation_number') != subject:
+        if row.get('organisasjonsnummer' if expected == 'registry_csv' else 'organisation_number') != subject:
             raise ValueError('Source subject mismatch')
         return raw, receipt, row
 
@@ -90,10 +101,18 @@ class EvidenceChecker:
             if candidate.field not in SPECIFICATIONS:
                 raise ValueError('Unsupported field')
             raw, receipt, row = self.verify_source(candidate.snapshot_id, subject)
-            key, expected_type = SPECIFICATIONS[candidate.field]
+            is_csv = receipt['snapshot_kind'] == 'registry_csv'
+            key, expected_type = (CSV_SPECIFICATIONS if is_csv else SPECIFICATIONS)[candidate.field]
             value = row.get(key)
+            if (is_csv and candidate.field == 'registered_employees'
+                    and 'harRegistrertAntallAnsatte' in row and row['harRegistrertAntallAnsatte'] != 'true'):
+                return dict(audit, accepted=False, reason='absent_in_frozen_row')
             if value is None or value == '':
                 return dict(audit, accepted=False, reason='absent_in_frozen_row')
+            if is_csv and expected_type is int:
+                if not isinstance(value, str) or re.fullmatch('[0-9]+', value) is None:
+                    raise ValueError('Invalid CSV integer value')
+                value = int(value)
             if type(value) is not expected_type or type(candidate.value) is not expected_type or candidate.value != value:
                 raise ValueError('Proposed value or type does not match source')
             if expected_type is str and not value.strip():
@@ -109,7 +128,8 @@ class EvidenceChecker:
             evidence = {'id': evidence_id, 'snapshot_id': candidate.snapshot_id,
                         'source_url': receipt['source_url'], 'source_class': 'frozen_registry',
                         'retrieved_at': receipt['retrieved_at'], 'content_sha256': receipt['content_sha256'],
-                        'claim_span': value_span(raw, key), 'extraction_method': 'registry_json_field_v1',
+                        'claim_span': value_span(raw, key),
+                        'extraction_method': 'registry_csv_column_v1' if is_csv else 'registry_json_field_v1',
                         'locator': {'row_number': receipt['row_number'], 'organisation_number': subject, 'field': key}}
             return dict(audit, accepted=True, claim=claim, evidence=evidence)
         except (ValueError, OSError, KeyError, TypeError, IndexError) as exc:

@@ -66,8 +66,8 @@ class SourceAudit:
             if receipt['source_class'] in ('brreg_entity', 'brreg_accounts', 'brreg_subunits', 'company_owned'):
                 from .live_support import audit_api, audit_web
                 if receipt['source_class'] == 'company_owned':
-                    anchor_receipt = strict_json(self.read('receipts', receipt['ownership_anchor_snapshot_id']))
-                    anchor = strict_json(self.read('objects', anchor_receipt['content_sha256']))
+                    from .registry_support import identity_anchor
+                    anchor = identity_anchor(self, receipt['ownership_anchor_snapshot_id'], subject)
                     from urllib.parse import urlsplit
                     if receipt.get('robots_snapshot_id'):
                         from urllib.robotparser import RobotFileParser
@@ -84,18 +84,12 @@ class SourceAudit:
                             raise ValueError('Audit robots denies published page')
                     website = anchor.get('hjemmeside', '')
                     host = urlsplit(website if '://' in website else 'https://' + website).hostname
-                    identity_url = 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject
-                    if (anchor.get('organisasjonsnummer') != subject
-                            or anchor_receipt.get('source_class') != 'brreg_entity'
-                            or anchor_receipt.get('organisation_number') != subject
-                            or anchor_receipt.get('http_status') != 200
-                            or anchor_receipt.get('source_url') != identity_url):
-                        raise ValueError('Audit website identity anchor mismatch')
                     ownership_id = receipt.get('operator_snapshot_id', item['snapshot_id'])
                     ownership_receipt = strict_json(self.read('receipts', ownership_id))
                     ownership_raw = self.read('objects', ownership_receipt['content_sha256'])
                     from .html_support import legal_operator, audit_html, seller_contract
-                    proof = legal_operator(ownership_raw, subject, anchor.get('navn', ''))
+                    proof = legal_operator(ownership_raw, subject, anchor.get('navn', ''), website,
+                                           ownership_receipt['effective_url'])
                     if proof and (ownership_receipt.get('organisation_number') != subject
                             or ownership_receipt.get('source_class') != 'company_owned'
                             or ownership_receipt.get('http_status') != 200
@@ -111,7 +105,8 @@ class SourceAudit:
                         if not urlsplit(receipt['effective_url']).path.startswith(prefix):
                             raise ValueError('Audit page escapes verified seller path')
                     if item['extraction_method'] == 'explicit_subject_html_v1':
-                        audit_html(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw)
+                        audit_html(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw,
+                                   website, ownership_receipt['effective_url'])
                         continue
                     if item['extraction_method'] == 'scoped_catalogue_html_v2':
                         from .html_support import audit_catalogue
@@ -121,46 +116,8 @@ class SourceAudit:
                 continue
             source = strict_json(raw)
             if claim['field'] in IDENTITY_FIELDS:
-                if (claim.get('scope') != 'frozen_registry' or receipt['snapshot_kind'] != 'registry_jsonl'
-                        or receipt.get('source_class') != 'frozen_registry'):
-                    raise ValueError('Frozen identity scope mismatch')
-                parent_key = receipt['parent_sha256']
-                parent = self.read('objects', parent_key)
-                key = (parent_key, receipt['uncompressed_sha256'], receipt['compressed'])
-                if receipt['sha256'] != parent_key:
-                    raise ValueError('Archive receipt mismatch')
-                if key not in self.archives:
-                    digest = hashlib.sha256()
-                    rows = {}
-                    stream = gzip.GzipFile(fileobj=io.BytesIO(parent)) if receipt['compressed'] else io.BytesIO(parent)
-                    with stream:
-                        for index, line in enumerate(stream, 1):
-                            digest.update(line)
-                            row = strict_json(line)
-                            if row['organisation_number'] in self.subjects:
-                                if row['organisation_number'] in rows:
-                                    raise ValueError('Duplicate audit registry subject')
-                                rows[row['organisation_number']] = (line, index)
-                    if digest.hexdigest() != receipt['uncompressed_sha256']:
-                        raise ValueError('Audit expanded archive hash mismatch')
-                    self.archives[key] = rows
-                if self.archives[key].get(subject) != (raw, receipt['row_number']):
-                    raise ValueError('Audit row membership failure')
-                value = source[IDENTITY_FIELDS[claim['field']]]
-                expected_type = int if claim['field'] == 'registered_employees' else str
-                if type(value) is not expected_type or (expected_type is str and not value.strip()):
-                    raise ValueError('Audit registry field type mismatch')
-                if claim['field'] == 'registered_employees' and value < 0:
-                    raise ValueError('Negative registry employee count')
-                if type(value) is not type(claim['value']) or value != claim['value']:
-                    raise ValueError('Audit identity value mismatch')
-                if source['organisation_number'] != subject:
-                    raise ValueError('Audit identity subject mismatch')
-                if item['locator'] != {'row_number': receipt['row_number'], 'organisation_number': subject,
-                                       'field': IDENTITY_FIELDS[claim['field']]}:
-                    raise ValueError('Audit identity locator mismatch')
-                if strict_json(item['claim_span']) != value:
-                    raise ValueError('Audit identity span supports a different value')
+                from .registry_support import audit_registry
+                audit_registry(self, subject, claim, item, receipt, raw)
             elif claim['field'].startswith('registered_role:'):
                 url = f'https://data.brreg.no/enhetsregisteret/api/enheter/{subject}/roller'
                 if (claim.get('scope') != 'registered_role_snapshot' or receipt['snapshot_kind'] != 'brreg_roles_json'

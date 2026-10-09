@@ -290,17 +290,74 @@ class CoverageRepairTests(unittest.TestCase):
         budget = Budget(config, time.monotonic() + 3)
         search = AnySearchDiscovery(Fetcher(budget, lambda *args: (429, {}, b'')),
             {'request_interval_seconds': .02, 'max_queries_per_company': 2, 'max_candidates': 3})
-        for _ in range(3):
+        reasons = []
+        for _ in range(100):
             with self.assertRaises(SourceUnavailable): search.candidates(SUBJECT)
+            reasons.append(search.diagnostics[SUBJECT][-1]['reason'])
         self.assertEqual(budget.requests, 1)
+        self.assertEqual(len(set(reasons[1:])), 1)
+        self.assertEqual(reasons[-1].count('Anonymous discovery unavailable:'), 1)
+        self.assertEqual(search.error, reasons[-1])
 
     def test_bootstrap_failure_is_shared_instead_of_repeated_for_each_company(self):
         config = load(ROOT / 'configs/local-live.json'); config.update(min_host_interval_seconds=0, max_retries=0)
         budget = Budget(config, time.monotonic() + 3)
         nav = NavFeed(Fetcher(budget, lambda *args: (403, {}, b'')))
-        for _ in range(3):
-            with self.assertRaises(SourceUnavailable): nav.headers()
+        reasons = []
+        for _ in range(100):
+            with self.assertRaises(SourceUnavailable) as failure:
+                nav.headers()
+            reasons.append(str(failure.exception))
         self.assertEqual(budget.requests, 1)
+        self.assertEqual(len(set(reasons)), 1)
+        self.assertEqual(reasons[0].count('NAV feed bootstrap unavailable:'), 1)
+
+    def test_nav_timeout_identifies_bootstrap_stage_and_does_not_retry_per_company(self):
+        for stage in ('public_token', 'feed_page'):
+            with self.subTest(stage=stage):
+                config = load(ROOT / 'configs/local-live.json')
+                config.update(min_host_interval_seconds=0, max_retries=1)
+                budget = Budget(config, time.monotonic() + 3)
+                def transport(url, *args):
+                    if stage == 'feed_page' and url.endswith('/publicToken'):
+                        return 200, {}, b'header.payload.signature'
+                    raise TimeoutError('The read operation timed out')
+                nav = NavFeed(Fetcher(budget, transport))
+                reasons = []
+                for _ in range(100):
+                    with self.assertRaises(SourceUnavailable) as failure:
+                        nav.headers()
+                    reasons.append(str(failure.exception))
+                self.assertEqual(budget.requests, 2 if stage == 'public_token' else 3)
+                self.assertEqual(nav.diagnostics['bootstrap_stage'], stage)
+                self.assertEqual(nav.diagnostics['pages'], 0)
+                self.assertEqual(len(set(reasons)), 1)
+                self.assertIsNone(nav.index)
+
+    def test_worker_reports_nav_stage_when_acquisition_fails(self):
+        config = load(ROOT / 'configs/local-live.json')
+        config.update(enabled_sources=['brreg_entity', 'nav_jobs'], min_host_interval_seconds=0, max_retries=1)
+        frames = []
+        class Connection:
+            def send(self, frame): frames.append(frame)
+            def close(self): pass
+        def transport(fetcher, url, *args):
+            if 'data.brreg.no' in url:
+                raw = json.dumps({'organisasjonsnummer': SUBJECT, 'navn': 'Company AS',
+                                  '_links': {'self': {'href': url}}}).encode()
+                fetcher.budget.consume(len(raw))
+                return 200, {'content-type': 'application/json'}, raw
+            raise TimeoutError('The read operation timed out')
+        job = {'store': self.store.root, 'subjects': [SUBJECT], 'previous': {}, 'config': config,
+               'deadline': time.monotonic() + 3, 'started_at': WHEN, 'run_id': 'nav-timeout'}
+        with patch('shirushi.fetch.Fetcher._request', transport):
+            worker(Connection(), job)
+        result = next(frame[2] for frame in frames if frame[0] == 'result')
+        nav = next(attempt for attempt in result['attempts'] if attempt['source'] == 'nav_jobs')
+        self.assertEqual(nav['feed_window']['bootstrap_stage'], 'public_token')
+        self.assertEqual(nav['status'], 'failed')
+        self.assertEqual(nav['requests'], 2)
+        self.assertEqual(result['envelope']['run']['terminal_status'], 'completed')
 
     def test_nav_and_post_credentials_cannot_escape_scoped_endpoints(self):
         config = load(ROOT / 'configs/local-live.json'); budget = Budget(config, time.monotonic() + 3)

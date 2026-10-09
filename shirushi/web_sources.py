@@ -10,6 +10,10 @@ from .contracts import loads, timestamp
 from .html_sources import catalogue_values, html_values, operator_proof
 from .fetch import safe_url, website_candidate, website_hosts
 from .snapshots import digest
+from .identity import legal_anchor
+
+LEGAL_LINK = r'vilk|terms|conditions|betingelser|legal|jurid|imprint|privacy|personvern'
+IDENTITY_LINK = LEGAL_LINK + r'|kontakt|contact|about|om-oss'
 
 
 class Page(HTMLParser):
@@ -117,29 +121,26 @@ def page_values(raw, subject, url, cutoff=None):
                            'jobs_dated_activity', url, script_index, path)
 
 
-def check_web(store, subject, sid):
+def check_web(store, subject, sid, checker=None):
     raw, receipt = store.open(sid)
     if (receipt['organisation_number'] != subject or receipt['source_class'] != 'company_owned'
             or receipt['http_status'] != 200 or receipt['sha256'] != digest(raw)
             or receipt.get('robots_checked') is not True
             or receipt.get('declared_host') != urlsplit(receipt['effective_url']).hostname):
         raise ValueError('Company page receipt mismatch')
-    anchor_raw, anchor_receipt = store.open(receipt['ownership_anchor_snapshot_id'])
-    anchor = loads(anchor_raw)
+    anchor = legal_anchor(store, receipt['ownership_anchor_snapshot_id'], subject, checker)
     declared = anchor.get('hjemmeside', '')
     try:
         declared = website_candidate(declared)
     except ValueError:
         declared = ''
-    if (anchor_receipt['source_class'] != 'brreg_entity' or anchor.get('organisasjonsnummer') != subject
-            or anchor_receipt['source_url'] != 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject):
-        raise ValueError('Website identity anchor mismatch')
     host = urlsplit(declared).hostname
     registry_host = host is not None and receipt['declared_host'] in website_hosts(host)
     ownership_sid = receipt.get('operator_snapshot_id', sid)
     ownership_raw, ownership_receipt = store.open(ownership_sid)
     legal_name = anchor.get('navn', '')
-    proof = operator_proof(ownership_raw, subject, legal_name)
+    proof = operator_proof(ownership_raw, subject, legal_name, anchor.get('hjemmeside', ''),
+                           ownership_receipt['effective_url'])
     if proof and (ownership_receipt.get('organisation_number') != subject
                   or ownership_receipt.get('source_class') != 'company_owned'
                   or ownership_receipt.get('robots_checked') is not True
@@ -155,7 +156,9 @@ def check_web(store, subject, sid):
             raise ValueError('Company page escapes the verified seller locale/path')
     if not registry_host and not proof:
         raise ValueError('Website discovery is not anchored to this company')
-    cutoff = timestamp(receipt['retrieved_at']).date()
+    cutoff = timestamp(receipt.get('evaluation_cutoff', receipt['retrieved_at'])).date()
+    if cutoff > timestamp(receipt['retrieved_at']).date():
+        raise ValueError('Evaluation cutoff is after acquisition')
     decisions = []
     scripts = Page(raw).scripts
     for field, value, family, item, script, path in page_values(raw, subject, receipt['effective_url'], cutoff):
@@ -244,8 +247,8 @@ def sitemap_links(raw, url, prefix):
         if urlsplit(candidate).path.startswith(prefix) and candidate not in result:
             result.append(candidate)
     if kind == 'urlset':
-        result = [u for u in result if re.search(r'vilk|terms|legal|jurid|imprint|kontakt|contact', urlsplit(u).path, re.I)]
-        result.sort(key=lambda u: not bool(re.search(r'vilk|terms', urlsplit(u).path, re.I)))
+        result = [u for u in result if re.search(IDENTITY_LINK, urlsplit(u).path, re.I)]
+        result.sort(key=lambda u: not bool(re.search(r'vilk|terms|conditions|betingelser', urlsplit(u).path, re.I)))
     return kind, result
 
 
@@ -253,7 +256,7 @@ def page_links(raw, url):
     result = []
     for link in Page(raw).links:
         candidate = urljoin(url, link)
-        if not re.search(r'product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|about|om-oss|kontakt|vilk|terms|legal|jurid|imprint|aktuelt|rekrutter', candidate, re.I):
+        if not re.search(IDENTITY_LINK + r'|product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|aktuelt|rekrutter', candidate, re.I):
             continue
         try:
             candidate = safe_url(candidate, {urlsplit(url).hostname})
@@ -264,7 +267,22 @@ def page_links(raw, url):
     # Identity evidence first, then content, never DOM navigation order.
     def priority(link):
         path = urlsplit(link).path.lower()
-        return (0 if re.search(r'vilk|terms|legal|jurid|imprint', path) else
+        return (0 if re.search(LEGAL_LINK, path) else
                 1 if re.search(r'produkt|product|service|tjenest', path) else
                 2 if re.search(r'job|career|stilling|rekrutter|news|nyhet|aktuelt', path) else 3)
     return sorted(result, key=priority)
+
+
+def content_links(links):
+    """After identity proof, share the page budget across observed attributes."""
+    groups = [[], [], [], []]
+    for link in dict.fromkeys(links):
+        path = urlsplit(link).path.lower()
+        group = (0 if re.search(r'produkt|product|service|tjenest', path) else
+                 1 if re.search(r'job|career|stilling|ledig|rekrutter', path) else
+                 2 if re.search(r'news|nyhet|press|aktuelt', path) else 3)
+        groups[group].append(link)
+    # One product, careers and activity opportunity before deeper catalogues.
+    # Links remain untrusted. The ordinary ownership/content checks still apply.
+    return [group[index] for index in range(max((len(g) for g in groups), default=0))
+            for group in groups if index < len(group)]

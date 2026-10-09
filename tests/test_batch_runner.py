@@ -63,6 +63,23 @@ def wrong_subject_worker(connection, job):
     connection.close()
 
 
+def done_then_crash_worker(connection, job):
+    for subject in job['subjects']:
+        result = envelope(subject, job['run_id'], job['started_at'], [])
+        connection.send(('result', subject, {'envelope': result, 'decisions': [], 'attempts': []}))
+    connection.send(('done', None, None))
+    connection.close()
+    os._exit(17)
+
+
+def done_then_block_worker(connection, job):
+    for subject in job['subjects']:
+        result = envelope(subject, job['run_id'], job['started_at'], [])
+        connection.send(('result', subject, {'envelope': result, 'decisions': [], 'attempts': []}))
+    connection.send(('done', None, None))
+    time.sleep(30)
+
+
 class BatchRunnerTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -191,6 +208,15 @@ class BatchRunnerTests(unittest.TestCase):
         results, _, metadata = run_supervised(self.job(), self.contract, reordered_worker)
         self.assertEqual([e['organisation_number'] for e in results], self.subjects)
         self.assertTrue(metadata['worker_completed'])
+
+    def test_done_message_cannot_hide_crash_or_forced_termination(self):
+        for target in (done_then_crash_worker, done_then_block_worker):
+            with self.subTest(target=target.__name__):
+                results, _, metadata = run_supervised(self.job(), self.contract, target)
+                self.assertFalse(metadata['worker_completed'])
+                self.assertNotEqual(metadata['worker_exit_code'], 0)
+                self.assertTrue(all(e['run']['terminal_status'] == 'failed' for e in results))
+                self.assertTrue(all(any(x['stage'] == 'supervisor' for x in e['errors']) for e in results))
 
     def test_wrong_company_checkpoint_cannot_be_published(self):
         results, _, metadata = run_supervised(self.job(), self.contract, wrong_subject_worker)

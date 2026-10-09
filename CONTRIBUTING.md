@@ -1,6 +1,6 @@
 # Contributing
 
-Read the [engineering plan](docs/engineering-plan.md), [company envelope](docs/company-envelope.md), and [rubric mapping](docs/engineering-standards.md) before changing behavior. Use an issue or pull request to describe the concrete problem, proposed behavior, evidence and validation. Public changes include validation evidence and document unmeasured behavior.
+Read the [company envelope](docs/company-envelope.md) and [source policy](docs/source-policy.md) before changing behavior. Describe the concrete problem, resulting behavior and validation in the pull request.
 
 Use Python 3.12.12 and a local virtual environment. The current checks need no application dependencies:
 
@@ -10,7 +10,7 @@ python -m venv --without-pip .venv
 .venv\Scripts\python.exe -X dev -W error -m unittest discover -s tests -v
 ```
 
-On Linux/macOS use `.venv/bin/python`. The saved-company commit passed hosted checks on Linux 3.12.12 and Windows 3.12.10; subsequent local changes require their own validation. `tools/audit_repository.py` additionally requires ignored local research inputs and is deliberately excluded from public CI. The [batch runbook](docs/batch-runner-hardening.md) covers real-source replay and reference evaluation.
+On Linux/macOS use `.venv/bin/python`. CI checks Linux 3.12.12 and Windows 3.12.10. `tools/audit_repository.py` requires ignored local research inputs and is excluded from public CI. See the [evaluator command](docs/evaluator-command.md) for Linux execution and refresh.
 
 Follow [PEP 8](https://peps.python.org/pep-0008/): four-space indentation, `snake_case` functions/modules, explicit imports and readable control flow. Name files for their responsibility, not a development stage. Use `test_contract_validation.py` for envelope/configuration invariants and future adapter-specific test files for retrieval/extraction behavior. Separate source acquisition, identity resolution, extraction, evidence checking and serialization.
 

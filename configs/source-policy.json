@@ -83,7 +83,7 @@
       "basis": "NAV documented public experimental token and feed API; exact BRREG employer-subunit bridge required",
       "terms_url": "https://arbeidsplassen.nav.no/vilkar-api",
       "scope": "Active dated postings and explicit employer descriptions only; no job-description inference, contact extraction or absence claims from truncated feeds",
-      "rate_policy": "One shared seven-day window, at most two feed pages per run and three employer-matched details per company, subject to global ledger and host spacing"
+      "rate_policy": "One shared initial window of 184 days, at most 32 feed pages per run and three employer-matched details per company, subject to the global request/byte/time ledger and host spacing. Truncation or outage never establishes absence; later inactive events remove earlier candidate leads."
     },
     {
       "id": "patents_procurement",
