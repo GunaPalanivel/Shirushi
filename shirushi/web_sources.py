@@ -256,7 +256,7 @@ def page_links(raw, url):
     result = []
     for link in Page(raw).links:
         candidate = urljoin(url, link)
-        if not re.search(IDENTITY_LINK + r'|product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|aktuelt|rekrutter', urlsplit(candidate).path, re.I):
+        if not re.search(IDENTITY_LINK + r'|product|produkt|service|tjenest|career|job|stilling|ledig|news|nyhet|press|aktuelt|rekrutter', candidate, re.I):
             continue
         try:
             candidate = safe_url(candidate, {urlsplit(url).hostname})

@@ -119,6 +119,11 @@ class ExternalHTMLTests(unittest.TestCase):
         self.assertEqual(page_links(html, 'https://example.com/'),
                          ['https://example.com/products', 'https://example.com/services'])
 
+    def test_query_based_content_links_remain_retrieval_leads(self):
+        html = b'<a href="/index.php?page=products">Products</a><a href="https://other.com/?page=products">Other</a>'
+        self.assertEqual(page_links(html, 'https://example.com/'),
+                         ['https://example.com/index.php?page=products'])
+
     def registered_site(self):
         raw = json.dumps({'organisasjonsnummer': SUBJECT, 'navn': NAME,
                           'hjemmeside': 'www.example.com'}).encode()
