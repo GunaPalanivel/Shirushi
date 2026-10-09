@@ -290,9 +290,14 @@ class CoverageRepairTests(unittest.TestCase):
         budget = Budget(config, time.monotonic() + 3)
         search = AnySearchDiscovery(Fetcher(budget, lambda *args: (429, {}, b'')),
             {'request_interval_seconds': .02, 'max_queries_per_company': 2, 'max_candidates': 3})
-        for _ in range(3):
+        reasons = []
+        for _ in range(100):
             with self.assertRaises(SourceUnavailable): search.candidates(SUBJECT)
+            reasons.append(search.diagnostics[SUBJECT][-1]['reason'])
         self.assertEqual(budget.requests, 1)
+        self.assertEqual(len(set(reasons[1:])), 1)
+        self.assertEqual(reasons[-1].count('Anonymous discovery unavailable:'), 1)
+        self.assertEqual(search.error, reasons[-1])
 
     def test_bootstrap_failure_is_shared_instead_of_repeated_for_each_company(self):
         config = load(ROOT / 'configs/local-live.json'); config.update(min_host_interval_seconds=0, max_retries=0)

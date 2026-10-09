@@ -85,3 +85,36 @@ and 8 GB for its worker, at most 14 GB across the four controlled processes;
 it retains the eight-CPU ceiling, shared 8 GB snapshot ceiling and 0.5 GB artifact
 ceiling. Final exact-head hosted results must be checked separately from the
 earlier source run. No claim of 80+ is authorized by these observations.
+
+### Final hosted head and repeatable discovery failure, 9 October review
+
+At `808f167`, workflow [37846382273](https://github.com/GunaPalanivel/Shirushi/actions/runs/37846382273)
+completed with nine successful jobs and two failed NAV company-gain jobs. Both
+gain jobs completed their outputs during a feed-bootstrap timeout, but established
+no gain. These failures remain visible; support-only success is not a recall gate.
+The frozen live shard returned 100/100, passed its source audit and used 828
+attempts, $0 and 587,544 ms including launch and audit. Supported company coverage
+was people 100, finance 100 and operating locations 78; website/business/jobs
+coverage remained zero. Website diagnostics separate 66 companies without an
+acquired page from 34 with pages but no verified website (227 candidates, 74 pages,
+44 identity rejections). These are acquisition-stage observations, not independent
+labels of available opportunities.
+
+The combined shard returned 100/100 with 1,134 attempts, $0 and 868,062 ms. Browser
+acceptance passed at 1440/390/320 pixels. These exact-head results replace the
+earlier head's measurements for release review, without erasing failed runs.
+
+Prediction before the discovery diagnostic repair: after one anonymous-provider
+quota rejection, a 100-company replay makes one search attempt, preserves bounded
+legal-name fallback and keeps the cached reason constant. The old code added one
+`Anonymous discovery unavailable:` prefix per company. Cache the reason only on
+the initial blocked failure, matching the already repaired NAV behavior. The
+extended regression and all 179 tests pass locally on Python 3.12.14; six config
+checks and whitespace validation pass. This is a diagnostic repair with no
+predicted coverage gain; pinned 3.12.12 hosted checking remains separate.
+
+Next experiment gate: review fixed source opportunities independently, distinguish
+candidate/acquisition loss from legal-proof loss, predict newly covered companies
+before tuning, and compare under the same request/time budget. Do not relax exact
+identity proof to turn 34 rejected companies into apparent coverage. No official
+score, private wire confirmation or paid-provider provisioning has been received.
