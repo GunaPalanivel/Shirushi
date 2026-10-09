@@ -267,3 +267,18 @@ def page_links(raw, url):
                 1 if re.search(r'produkt|product|service|tjenest', path) else
                 2 if re.search(r'job|career|stilling|rekrutter|news|nyhet|aktuelt', path) else 3)
     return sorted(result, key=priority)
+
+
+def content_links(links):
+    """After identity proof, share the page budget across observed attributes."""
+    groups = [[], [], [], []]
+    for link in dict.fromkeys(links):
+        path = urlsplit(link).path.lower()
+        group = (0 if re.search(r'produkt|product|service|tjenest', path) else
+                 1 if re.search(r'job|career|stilling|ledig|rekrutter', path) else
+                 2 if re.search(r'news|nyhet|press|aktuelt', path) else 3)
+        groups[group].append(link)
+    # One product, careers and activity opportunity before deeper catalogues.
+    # Links remain untrusted. The ordinary ownership/content checks still apply.
+    return [group[index] for index in range(max((len(g) for g in groups), default=0))
+            for group in groups if index < len(group)]

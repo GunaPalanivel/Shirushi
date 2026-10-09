@@ -39,7 +39,7 @@ def business_statement(description, legal_name):
 
 
 class NavFeed:
-    def __init__(self, fetcher, days=7, max_pages=8, cutoff=None):
+    def __init__(self, fetcher, days=184, max_pages=32, cutoff=None):
         self.fetcher, self.days, self.max_pages = fetcher, days, max_pages
         self.cutoff = timestamp(cutoff) if cutoff else None
         self.lock, self.index, self.token, self.error = threading.Lock(), None, None, None
@@ -60,7 +60,10 @@ class NavFeed:
                 raise SourceUnavailable('Invalid NAV public experimental-token response', 'blocked')
             self.token = tokens[0]
             since = email.utils.format_datetime((self.cutoff or datetime.now(timezone.utc)) - timedelta(days=self.days), usegmt=True)
-            url, index = 'https://' + HOST + '/api/v1/feed', {}
+            # A cold run has no prior inventory. Seven days of updates cannot
+            # discover all active ads; NAV permits activity up to six months.
+            # The page cap still applies and incomplete inventory stays unknown.
+            url, entries = 'https://' + HOST + '/api/v1/feed', {}
             seen_pages = set()
             for _ in range(self.max_pages):
                 if url in seen_pages:
@@ -82,18 +85,24 @@ class NavFeed:
                     header = item.get('_feed_entry', {})
                     if not isinstance(header, dict):
                         raise SourceUnavailable('Invalid NAV feed header')
-                    if header.get('status') != 'ACTIVE' or not isinstance(header.get('businessName'), str):
-                        continue
                     candidate = safe_url(urljoin('https://' + HOST + '/', item['url']), {HOST})
                     if not urlsplit(candidate).path.startswith('/api/v1/'):
                         continue
-                    index.setdefault(company_key(header['businessName']), []).append(candidate)
-                    self.diagnostics['active_headers'] += 1
+                    # A later event replaces the earlier state, including an
+                    # inactive event. Prefer recently observed candidates when
+                    # only three details can be retrieved for one employer.
+                    entries.pop(candidate, None)
+                    entries[candidate] = header
                 next_url = page.get('next_url')
                 if not next_url:
                     self.diagnostics['window_complete'] = True
                     break
                 url = safe_url(urljoin('https://' + HOST + '/', next_url), {HOST})
+            index = {}
+            for candidate, header in reversed(list(entries.items())):
+                if header.get('status') == 'ACTIVE' and isinstance(header.get('businessName'), str):
+                    index.setdefault(company_key(header['businessName']), []).append(candidate)
+                    self.diagnostics['active_headers'] += 1
             self.index = index
             self.diagnostics['bootstrap_stage'] = 'complete'
             return index

@@ -159,13 +159,24 @@ def main(argv=None):
             command += ['--discovery-access-receipt', str(args.discovery_access_receipt.resolve())]
         # No aggregate wall cap is invented for an expanded batch. Each shard
         # receives the supplied 45 minutes; the harness can invoke shards in parallel.
+        process = None
         try:
             process = subprocess.run(command, cwd=ROOT, env=environment, check=False,
                                      timeout=LIMITS['wall_time_seconds'])
+            if process.returncode != 0:
+                raise ValueError(f'Shard process exited with code {process.returncode}')
             report = load(folder / 'report.json')
             rows = read_envelopes(folder / 'envelopes.jsonl')
             if not report.get('artifact_complete') or digest((folder / 'envelopes.jsonl').read_bytes()) != report.get('output_sha256'):
                 raise ValueError('Shard completion marker or output binding is invalid')
+            supervision = report.get('supervision', {})
+            if (report.get('status') != 'completed' or report.get('failed_companies') != 0
+                    or report.get('errors') or supervision.get('worker_completed') is not True
+                    or supervision.get('worker_exit_code') != 0
+                    or report.get('input_count') != len(batch) or report.get('output_count') != len(rows)
+                    or report.get('input_sha256') != digest((folder / 'input.jsonl').read_bytes())
+                    or any(row['run']['terminal_status'] != 'completed' for row in rows)):
+                raise ValueError('Shard process, supervision and completion report disagree')
             errors = validate_public_contract([r['organisation_number'] for r in batch], rows)
             if errors:
                 raise ValueError('; '.join(errors))
@@ -187,7 +198,9 @@ def main(argv=None):
             # supervisor normally emits failure terminals; a launcher failure is
             # explicit and retained for diagnosis rather than invented source data.
             write_new(args.report, {'status': 'failed', 'artifact_complete': False,
-                'failed_shard': index, 'reason': str(exc), 'completed_shards': reports, 'official_score': None})
+                'failed_shard': index, 'reason': str(exc), 'completed_shards': reports,
+                'child_exit_code': process.returncode if process is not None else None,
+                'shard_artifacts_directory': str(folder), 'official_score': None})
             print(json.dumps({'status': 'failed', 'shard': index, 'reason': str(exc)}))
             return 1
         aggregate.extend(rows)

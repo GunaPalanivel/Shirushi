@@ -176,7 +176,7 @@ def run_supervised(job, contract, target=worker):
             reason = 'Wall-time scheduling budget exhausted'
     finally:
         if complete:
-            process.join(timeout=0.1)
+            process.join(timeout=min(1.0, max(0, job['deadline'] - time.monotonic())))
         if process.is_alive():
             process.terminate()
         process.join(timeout=0.2)
@@ -186,8 +186,14 @@ def run_supervised(job, contract, target=worker):
         receive.close()
         exit_code = process.exitcode
         process.close()
+    if complete and exit_code != 0:
+        complete = False
+        reason = f'Worker reported completion but exited with code {exit_code}'
+    if complete and terminals != set(job['subjects']):
+        complete = False
+        reason = 'Worker reported completion without every terminal result'
     for subject in job['subjects']:
-        if subject in slots and subject not in terminals:
+        if subject in slots and (not complete or subject not in terminals):
             slots[subject]['run']['terminal_status'] = 'failed'
             slots[subject]['errors'].append({'stage': 'supervisor', 'reason': reason})
         if subject not in slots:

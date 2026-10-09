@@ -97,7 +97,7 @@ jobs:
         with:
           python-version: '3.12.12'
       - name: Prepare declared smoke snapshot and audit evaluator command
-        run: python -X dev -W error tools/validate_official_live.py --output-dir out/frozen-live
+        run: python -X dev -W error tools/validate_official_live.py --output-dir out/frozen-live --discovery-access-receipt configs/anysearch-anonymous.json
       - name: Retain bound summary without source bodies or company exports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -20,13 +20,13 @@ from .fetch import Budget, BudgetExceeded, Fetcher, SourceUnavailable, safe_url,
 from .planner import Planner, ROUTE_FAMILIES
 from .roles import check_role, propose_roles
 from .snapshots import SnapshotStore, digest
-from .web_sources import check_web, locale_links, page_links, sitemap_links
+from .web_sources import check_web, content_links, locale_links, page_links, sitemap_links
 from .nav_jobs import NavFeed, check_nav
 
 
 def acquire_website(fetcher, subject, entity, discovery, max_pages):
     """Follow legal/contact leads before rejecting a site; bound all candidate pages."""
-    pages, failures, seen, metadata_seen = [], [], set(), set()
+    pages, failures, seen, attempted, metadata_seen = [], [], set(), set(), set()
     funnel = {'candidate_domains': 0, 'candidate_pages_retrieved': 0, 'candidate_identity_rejections': 0}
     declared = entity.get('hjemmeside')
     candidates = []
@@ -52,11 +52,13 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                 pass
 
     def retrieve(url, hosts):
-        if len(seen) >= max_pages or url in seen:
+        if len(attempted) >= max_pages or url in seen:
             return None
         seen.add(url)
+        attempted.add(url)
         try:
             page = fetcher.get(url, hosts, robots=True)
+            seen.add(page[1]['effective_url'])
             funnel['candidate_pages_retrieved'] += 1
             if 'html' not in page[1]['content_type'].lower():
                 raise SourceUnavailable('Website candidate is not HTML', 'not_available')
@@ -73,7 +75,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
     # legally attributed. Transient candidate text never becomes evidence.
     for phase in range(2):
         if phase:
-            if not discovery or len(seen) >= max_pages:
+            if not discovery or len(attempted) >= max_pages:
                 break
             try:
                 candidates = discovery.candidates(subject, entity)
@@ -120,7 +122,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                         identity_links = [child for child in page_links(page[0], page[1]['effective_url'])
                                           if child not in seen and re.search(r'legal|jurid|terms|vilk|imprint',
                                                                             urlsplit(child).path, re.I)] + identity_links
-            if owner is None and len(seen) < max_pages and len(metadata_seen) < 2:
+            if owner is None and len(attempted) < max_pages and len(metadata_seen) < 2:
                 # Some seller terms are absent from navigation but explicitly
                 # listed in robots-advertised XML. Two metadata fetches total
                 # per company, separate from the bounded HTML page attempts.
@@ -144,7 +146,7 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
                                 if operator_proof(page[0], subject, entity['navn']):
                                     owner = page
                                     break
-                            if len(seen) >= max_pages:
+                            if len(attempted) >= max_pages:
                                 break
                 except (SourceUnavailable, ValueError) as exc:
                     failures.append({'url': locale_url, 'reason': 'Sitemap lead unavailable: ' + str(exc),
@@ -163,8 +165,8 @@ def acquire_website(fetcher, subject, entity, discovery, max_pages):
             # Persist ownership first, then independently check content pages.
             local = [owner] + [page for page in local if page is not owner
                               and urlsplit(page[1]['effective_url']).path.startswith(prefix)]
-            content_links = [scoped_home] + links + page_links(owner[0], owner[1]['effective_url'])
-            for link in dict.fromkeys(content_links):
+            content = [scoped_home] + content_links(links + page_links(owner[0], owner[1]['effective_url']))
+            for link in dict.fromkeys(content):
                 if not urlsplit(link).path.startswith(prefix):
                     continue
                 page = retrieve(link, host)

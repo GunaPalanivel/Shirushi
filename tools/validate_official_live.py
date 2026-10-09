@@ -56,6 +56,7 @@ def main():
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--registry', type=Path)
     parser.add_argument('--registry-receipt', type=Path)
+    parser.add_argument('--discovery-access-receipt', type=Path)
     parser.add_argument('--cohort', choices=('development', 'validation'), default='development')
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=False)
@@ -78,8 +79,17 @@ def main():
         '--output', str(args.output_dir / 'envelopes.jsonl'), '--report', str(args.output_dir / 'report.json'),
         '--work-dir', str(args.output_dir / 'work'), '--run-id', 'pr4-frozen-' + args.cohort,
         '--showcase-dir', str(args.output_dir / 'site'), '--cutoff', cutoff]
+    if args.discovery_access_receipt:
+        command += ['--discovery-access-receipt', str(args.discovery_access_receipt.resolve())]
     process = subprocess.run(command, cwd=ROOT, check=False, timeout=2800)
     report = load(args.output_dir / 'report.json')
+    if process.returncode or report.get('status') != 'completed' or report.get('artifact_complete') is not True:
+        result = {'status': 'FAIL', 'launcher_exit_code': process.returncode,
+            'launcher_report': report, 'snapshot_preparation': preparation, 'official_score': None,
+            'scope': 'Failed published-command smoke; no coverage or score assertion'}
+        write_new(args.output_dir / 'validation.json', result)
+        print(json.dumps(result, indent=2))
+        return 1
     rows = internal_records(read_envelopes(args.output_dir / 'envelopes.jsonl'))
     families = {}
     fields = {}
