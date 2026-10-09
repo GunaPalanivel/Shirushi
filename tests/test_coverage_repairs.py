@@ -334,6 +334,31 @@ class CoverageRepairTests(unittest.TestCase):
                 self.assertEqual(len(set(reasons)), 1)
                 self.assertIsNone(nav.index)
 
+    def test_worker_reports_nav_stage_when_acquisition_fails(self):
+        config = load(ROOT / 'configs/local-live.json')
+        config.update(enabled_sources=['brreg_entity', 'nav_jobs'], min_host_interval_seconds=0, max_retries=1)
+        frames = []
+        class Connection:
+            def send(self, frame): frames.append(frame)
+            def close(self): pass
+        def transport(fetcher, url, *args):
+            if 'data.brreg.no' in url:
+                raw = json.dumps({'organisasjonsnummer': SUBJECT, 'navn': 'Company AS',
+                                  '_links': {'self': {'href': url}}}).encode()
+                fetcher.budget.consume(len(raw))
+                return 200, {'content-type': 'application/json'}, raw
+            raise TimeoutError('The read operation timed out')
+        job = {'store': self.store.root, 'subjects': [SUBJECT], 'previous': {}, 'config': config,
+               'deadline': time.monotonic() + 3, 'started_at': WHEN, 'run_id': 'nav-timeout'}
+        with patch('shirushi.fetch.Fetcher._request', transport):
+            worker(Connection(), job)
+        result = next(frame[2] for frame in frames if frame[0] == 'result')
+        nav = next(attempt for attempt in result['attempts'] if attempt['source'] == 'nav_jobs')
+        self.assertEqual(nav['feed_window']['bootstrap_stage'], 'public_token')
+        self.assertEqual(nav['status'], 'failed')
+        self.assertEqual(nav['requests'], 2)
+        self.assertEqual(result['envelope']['run']['terminal_status'], 'completed')
+
     def test_nav_and_post_credentials_cannot_escape_scoped_endpoints(self):
         config = load(ROOT / 'configs/local-live.json'); budget = Budget(config, time.monotonic() + 3)
         fetcher = Fetcher(budget)

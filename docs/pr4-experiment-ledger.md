@@ -142,3 +142,18 @@ Run the same DNS-pinned transport and dated first-feed request, no retries,
 at most four requests across both probes. Retain only stage, timing, counts and
 failure class; never retain tokens or upstream bodies. This diagnostic does not
 replace the failed coverage checks or establish source-side root cause.
+
+The hosted [probe](https://github.com/GunaPalanivel/Shirushi/actions/runs/37873521192)
+at `ed25871` acquired the public token at both settings, then timed out on the
+first feed page at both 10 and 30 seconds. It made four total requests and no
+paid calls. The longer-timeout hypothesis failed; do not promote it. Token
+availability varied across contemporaneous cohort runs, so this does not establish
+a server defect or a stable token-only outage.
+
+Checking failure reporting found a separate code bug: `attempt()` raised the
+acquisition error before copying `nav.diagnostics` into `feed_window`. A full-worker
+timeout reproduction completed the company but raised `KeyError: feed_window`
+when its NAV failure report was inspected. Move the diagnostic copy before that
+branch. The same reproduction passes with an explicit `public_token` stage,
+two attempts and a completed company; no claims or budgets change. All 181 local
+tests and six config checks pass after the repair.

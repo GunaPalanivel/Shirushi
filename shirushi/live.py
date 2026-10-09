@@ -375,6 +375,8 @@ def worker(connection, job):
             old_families = covered_families([d['claim'] for d in state['decisions'] if d['accepted']])
             initial = len(state['decisions'])
             report = {'source': route, 'status': 'checked'}
+            if route == 'nav_jobs':
+                report['feed_window'] = dict(nav.diagnostics)
             if route == 'company_owned':
                 report['funnel'] = dict(acquired['funnel'])
                 if isinstance(discovery, (AnySearchDiscovery, LegalNameDiscovery)):
@@ -411,7 +413,6 @@ def worker(connection, job):
                     _, sid = snapshot(subject, route, url, {'data.brreg.no'})
                     state['decisions'].extend(check_api(store, c, subject) for c in propose_api(store, sid))
                 elif route == 'nav_jobs':
-                    report['feed_window'] = dict(nav.diagnostics)
                     report['matched_employer_sources'] = len(available_pages)
                     sid = None
                     for raw, receipt, bridge_raw, bridge_receipt in available_pages:
