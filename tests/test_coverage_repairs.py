@@ -312,6 +312,28 @@ class CoverageRepairTests(unittest.TestCase):
         self.assertEqual(len(set(reasons)), 1)
         self.assertEqual(reasons[0].count('NAV feed bootstrap unavailable:'), 1)
 
+    def test_nav_timeout_identifies_bootstrap_stage_and_does_not_retry_per_company(self):
+        for stage in ('public_token', 'feed_page'):
+            with self.subTest(stage=stage):
+                config = load(ROOT / 'configs/local-live.json')
+                config.update(min_host_interval_seconds=0, max_retries=1)
+                budget = Budget(config, time.monotonic() + 3)
+                def transport(url, *args):
+                    if stage == 'feed_page' and url.endswith('/publicToken'):
+                        return 200, {}, b'header.payload.signature'
+                    raise TimeoutError('The read operation timed out')
+                nav = NavFeed(Fetcher(budget, transport))
+                reasons = []
+                for _ in range(100):
+                    with self.assertRaises(SourceUnavailable) as failure:
+                        nav.headers()
+                    reasons.append(str(failure.exception))
+                self.assertEqual(budget.requests, 2 if stage == 'public_token' else 3)
+                self.assertEqual(nav.diagnostics['bootstrap_stage'], stage)
+                self.assertEqual(nav.diagnostics['pages'], 0)
+                self.assertEqual(len(set(reasons)), 1)
+                self.assertIsNone(nav.index)
+
     def test_nav_and_post_credentials_cannot_escape_scoped_endpoints(self):
         config = load(ROOT / 'configs/local-live.json'); budget = Budget(config, time.monotonic() + 3)
         fetcher = Fetcher(budget)

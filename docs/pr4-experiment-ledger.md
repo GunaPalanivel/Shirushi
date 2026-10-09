@@ -118,3 +118,27 @@ candidate/acquisition loss from legal-proof loss, predict newly covered companie
 before tuning, and compare under the same request/time budget. Do not relax exact
 identity proof to turn 34 rejected companies into apparent coverage. No official
 score, private wire confirmation or paid-provider provisioning has been received.
+
+### NAV token timeout on the approved repair
+
+Workflow [37872386328](https://github.com/GunaPalanivel/Shirushi/actions/runs/37872386328)
+at `220012d` repeats the two company-gain failures. Both return 20/20 outputs with
+zero gains and no unfinished worker. The NAV attempt uses two requests and its
+reason is `TimeoutError: The read operation timed out`. The fetcher includes the
+exception message only on unauthenticated calls; NAV makes its public-token call
+without headers and feed calls with headers. This identifies the token request
+as the failing stage in this run, unlike the previous three-request failure.
+
+Reproduce both stages with a timeout transport: failed token acquisition uses two
+attempts; a successful token followed by failed feed acquisition uses three. In
+both cases 100 callers receive the same cached failure and no feed index is
+published. The new regression passes with the full 180-test suite locally.
+Record the bootstrap stage explicitly so future logs need not infer it.
+
+Prediction before hosted probing: if the 10-second request allowance is the
+bottleneck, a single 30-second token request should succeed where a 10-second
+request fails. If both fail, increasing the production timeout is unsupported.
+Run the same DNS-pinned transport and dated first-feed request, no retries,
+at most four requests across both probes. Retain only stage, timing, counts and
+failure class; never retain tokens or upstream bodies. This diagnostic does not
+replace the failed coverage checks or establish source-side root cause.

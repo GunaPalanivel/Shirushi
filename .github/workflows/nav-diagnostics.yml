@@ -1,0 +1,31 @@
+name: NAV bootstrap diagnostics
+
+on:
+  push:
+    paths:
+      - tools/diagnose_nav_bootstrap.py
+      - .github/workflows/nav-diagnostics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12.12'
+      - name: Compare 10 and 30 second bootstrap requests
+        run: python -X dev -W error tools/diagnose_nav_bootstrap.py --output out/nav-bootstrap.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: nav-bootstrap-${{ github.run_id }}
+          path: out/nav-bootstrap.json
+          if-no-files-found: error
+          retention-days: 14

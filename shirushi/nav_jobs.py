@@ -53,6 +53,7 @@ class NavFeed:
                 return self.index
             if self.error:
                 raise SourceUnavailable(self.error, 'blocked')
+            self.diagnostics['bootstrap_stage'] = 'public_token'
             raw, _ = self.fetcher.get('https://' + HOST + '/api/publicToken', {HOST})
             tokens = re.findall(r'[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+', raw.decode('utf-8'))
             if len(tokens) != 1:
@@ -65,6 +66,7 @@ class NavFeed:
                 if url in seen_pages:
                     break
                 seen_pages.add(url)
+                self.diagnostics['bootstrap_stage'] = 'feed_page'
                 raw, _ = self.fetcher.get(url, {HOST}, request_headers={'Authorization': 'Bearer ' + self.token,
                                                                  'If-Modified-Since': since})
                 page = loads(raw)
@@ -93,6 +95,7 @@ class NavFeed:
                     break
                 url = safe_url(urljoin('https://' + HOST + '/', next_url), {HOST})
             self.index = index
+            self.diagnostics['bootstrap_stage'] = 'complete'
             return index
         except (SourceUnavailable, ValueError, KeyError, TypeError) as exc:
             # One shared bootstrap failure must not consume the run budget once
