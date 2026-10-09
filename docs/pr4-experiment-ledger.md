@@ -157,3 +157,19 @@ when its NAV failure report was inspected. Move the diagnostic copy before that
 branch. The same reproduction passes with an explicit `public_token` stage,
 two attempts and a completed company; no claims or budgets change. All 181 local
 tests and six config checks pass after the repair.
+
+### Windows concurrency test scheduling
+
+At `d94cfe4`, the PR workflow's Windows job failed the host-concurrency test:
+`peak_active` was one rather than two. The push workflow passed the same test on
+the same head. Its 30 ms transport sleep assumed a second worker would enter
+before the first completed. A serial schedule is permitted and violates no
+production limit; running the original test with one executor worker reproduces
+the assertion (`1 != 2`). This reproduces the scheduling assumption, not the
+Windows runner's precise timing.
+
+Prediction: holding the first request until a second enters will establish the
+overlap being tested without relying on transport sleep. Use events to hold the
+first two transports while eight requests contend. Release them in `finally`
+and retain the spacing, peak-of-two and eight-attempt assertions. The revised
+test passes 30 repetitions locally. Hosted Windows validation remains required.
