@@ -135,8 +135,10 @@ def main(argv=None):
         folder = args.work_dir / f'shard-{index:04d}'
         folder.mkdir()
         config = load(ROOT / 'configs/shard-validation.json')
+        # NAV stays out of V1: listings have no organisation number, and the host
+        # often takes long enough to consume the shard budget.
         config.update(sample_size=len(batch), enabled_sources=['frozen_registry', 'brreg_roles',
-            'brreg_accounts', 'brreg_subunits', 'nav_jobs', 'company_owned'],
+            'brreg_accounts', 'brreg_subunits', 'company_owned'],
             settings_origin='Soham organizer email 2026-10-08, docs/organizer-run-limits.json; published-contract candidate')
         if args.offline:
             config.update(network_enabled=False, enabled_sources=['frozen_registry'])
