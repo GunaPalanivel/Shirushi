@@ -42,8 +42,13 @@ facts; acquisition timestamps retain their actual times. Optional-source failure
 does not establish absence or remove supported historical facts.
 
 The output follows the published `run/claims/evidence` example and
-`official_website` alias. The starter's nested `profile/modules/state` example
-differs; private-harness compatibility still needs organizer confirmation.
+`official_website` alias. The starter's runner writes a different envelope
+(`run_id/state/started_at/completed_at/modules/profile`), so each record also
+carries those keys, derived only from its own claims and evidence (see
+[company envelope](company-envelope.md)), and `confidence` on every claim.
+The public keys are unchanged. Which shape the private harness reads is
+unconfirmed. A refresh input may be a record with or without these blocks;
+they are rebuilt from the claims on every run and never read back as facts.
 
 Linux validation entrypoints:
 

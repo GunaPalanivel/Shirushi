@@ -14,7 +14,31 @@ from shirushi.contracts import load
 from shirushi.run import read_envelopes, write_new
 from shirushi.snapshots import digest
 from shirushi_eval.support import SourceAudit
-from shirushi_eval.wire import internal_records
+from shirushi_eval.wire import KIT_KEYS, internal_records, validate_public_contract
+
+
+VOLATILE = {'started_at', 'completed_at', 'retrieved_at', 'final_timestamp', 'runtime_ms',
+            'first_observed_at', 'last_observed_at', 'p50_company_completion_ms', 'p95_company_completion_ms'}
+
+
+def normalized(node):
+    """Drop only the contract's time fields; every other byte must repeat."""
+    if isinstance(node, dict):
+        return {k: normalized(v) for k, v in node.items() if k not in VOLATILE}
+    return [normalized(v) for v in node] if isinstance(node, list) else node
+
+
+def kit_errors(rows, subjects):
+    """Every record carries the derived kit blocks, and zero stays distinct from a missing count."""
+    errors = validate_public_contract(subjects, rows)
+    for row in rows:
+        if any(key not in row for key in KIT_KEYS) or any('confidence' not in c for c in row['claims']):
+            errors.append('Kit-compatible blocks missing for ' + row['organisation_number'])
+            continue
+        counts = [c['value'] for c in row['claims'] if c['field'] == 'registered_employees' and c['availability'] == 'available']
+        if ('employees' in row['profile']) != bool(counts) or (counts and row['profile']['employees'] != counts[0]):
+            errors.append('Profile employees differ from the registry claim for ' + row['organisation_number'])
+    return errors
 
 
 def main():
@@ -55,6 +79,9 @@ def main():
         process = subprocess.run(command, cwd=ROOT, check=False, timeout=120)
         report = load(folder / 'report.json')
         rows = read_envelopes(folder / 'output.jsonl')
+        errors = kit_errors(rows, subjects[:count])
+        if errors:
+            raise ValueError('Kit-compatible envelope check failed: ' + '; '.join(errors[:5]))
         store = args.output_dir / '100/work/snapshots' if '--store' in command else folder / 'work/snapshots'
         audit = SourceAudit(store, subjects[:count])
         for row in internal_records(rows):
@@ -63,6 +90,7 @@ def main():
                 audit.claim(row['organisation_number'], claim, evidence)
         result = {'count': count, 'output_count': len(rows), 'shards': len(report['shards']),
             'membership_order_matches': [r['organisation_number'] for r in rows] == subjects[:count],
+            'kit_blocks': 'PASS', 'zero_employees_kept': any(r['profile'].get('employees') == 0 for r in rows),
             'all_completed': all(r['run']['terminal_status'] == 'completed' for r in rows),
             'source_audit': 'PASS', 'operations': [r['operations'] for r in report['shards']],
             'guard': report['resource_guard'], 'output_sha256': report['output_sha256'],
@@ -83,6 +111,18 @@ def main():
             repeat += ['--previous', str(folder / 'output.jsonl'), '--store', str(folder / 'work/snapshots')]
             completed = subprocess.run(repeat, cwd=ROOT, check=False, timeout=120)
             rerun = read_envelopes(replay / 'output.jsonl')
+            twin = args.output_dir / 'twin'
+            twin.mkdir()
+            again = command.copy()
+            for flag, value in [('--output', twin / 'output.jsonl'), ('--report', twin / 'report.json'),
+                                ('--work-dir', twin / 'work')]:
+                again[again.index(flag) + 1] = str(value)
+            second = subprocess.run(again, cwd=ROOT, check=False, timeout=120)
+            differing = [a['organisation_number'] for a, b in zip(rows, read_envelopes(twin / 'output.jsonl'))
+                         if json.dumps(normalized(a), sort_keys=True) != json.dumps(normalized(b), sort_keys=True)]
+            result['two_run_differing_companies'] = len(differing)
+            if second.returncode or differing:
+                raise ValueError('Two identical cold runs differ for ' + ', '.join(differing[:5]))
             result['replay_value_changes'] = sum(len(r['changes']) for r in rerun)
             result['replay_history_count'] = sum(len(r['history']) for r in rerun)
             if completed.returncode or result['replay_value_changes'] or result['replay_history_count']:
