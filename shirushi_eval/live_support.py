@@ -113,7 +113,7 @@ class StructuredScripts(HTMLParser):
         self.items, self.current = [], None
         self.feed(raw.decode('utf-8'))
     def handle_starttag(self, tag, attrs):
-        if tag == 'script' and dict(attrs).get('type', '').lower() == 'application/ld+json':
+        if tag == 'script' and (dict(attrs).get('type') or '').lower() == 'application/ld+json':
             self.current = ''
     def handle_data(self, data):
         if self.current is not None:

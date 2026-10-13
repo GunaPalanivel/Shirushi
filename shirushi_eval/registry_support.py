@@ -121,7 +121,11 @@ def identity_anchor(audit, sid, subject):
         if not isinstance(name, str) or not name.strip():
             raise ValueError('Audit frozen legal name absent')
         return {'organisasjonsnummer': subject, 'navn': name,
-                'hjemmeside': row.get('hjemmeside' if csv_source else 'website') or ''}
+                'hjemmeside': row.get('hjemmeside' if csv_source else 'website') or '',
+                'epostadresse': row.get('epostadresse' if csv_source else 'email') or '',
+                'forretningsadresse': ({'adresse': row.get('forretningsadresse.adresse'),
+                                        'postnummer': row.get('forretningsadresse.postnummer'),
+                                        'poststed': row.get('forretningsadresse.poststed')} if csv_source else None)}
     row = strict_json(raw)
     if (receipt.get('source_class') != 'brreg_entity' or receipt.get('organisation_number') != subject
             or receipt.get('http_status') != 200 or receipt.get('sha256') != hashlib.sha256(raw).hexdigest()

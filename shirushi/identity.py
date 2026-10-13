@@ -14,9 +14,12 @@ def legal_anchor(store, snapshot_id, subject, checker=None):
         website = row.get('hjemmeside' if csv else 'website')
         if not isinstance(name, str) or not name.strip():
             raise ValueError('Frozen legal identity requires a nonblank name')
+        address = {'adresse': [row.get('forretningsadresse.adresse')], 'postnummer': row.get('forretningsadresse.postnummer'),
+                   'poststed': row.get('forretningsadresse.poststed')} if csv else None
         return {'organisasjonsnummer': subject, 'navn': name,
                 'hjemmeside': website if isinstance(website, str) else '',
-                'epostadresse': row.get('epostadresse') if csv else row.get('email')}
+                'epostadresse': row.get('epostadresse') if csv else row.get('email'),
+                'forretningsadresse': address}
     row = loads(raw)
     url = 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject
     if (receipt.get('source_class') != 'brreg_entity' or receipt.get('organisation_number') != subject

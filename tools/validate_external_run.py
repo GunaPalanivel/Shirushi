@@ -55,7 +55,8 @@ def main():
                 unsupported.append({'organisation_number': row['organisation_number'], 'reason': str(exc)})
                 continue
             if claim['availability'] != 'available' or claim['scope'] not in (
-                    'company_owned_html', 'company_owned_structured', 'company_owned_catalogue', 'nav_verified_employer'):
+                    'company_owned_html', 'registry_linked_html', 'registry_linked_structured', 'company_owned_structured',
+                    'company_owned_catalogue', 'nav_verified_employer'):
                 continue
             external_count += 1
             fields[claim['field']] = fields.get(claim['field'], 0) + 1

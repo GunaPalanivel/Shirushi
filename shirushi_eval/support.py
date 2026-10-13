@@ -69,6 +69,10 @@ class SourceAudit:
                     from .registry_support import identity_anchor
                     anchor = identity_anchor(self, receipt['ownership_anchor_snapshot_id'], subject)
                     from urllib.parse import urlsplit
+                    if (receipt.get('http_status') != 200 or receipt.get('robots_checked') is not True
+                            or receipt.get('sha256') != hashlib.sha256(raw).hexdigest()
+                            or receipt.get('declared_host') != urlsplit(receipt['effective_url']).hostname):
+                        raise ValueError('Audit company page receipt mismatch')
                     if receipt.get('robots_snapshot_id'):
                         from urllib.robotparser import RobotFileParser
                         robots_receipt = strict_json(self.read('receipts', receipt['robots_snapshot_id']))
@@ -87,8 +91,8 @@ class SourceAudit:
                     ownership_id = receipt.get('operator_snapshot_id', item['snapshot_id'])
                     ownership_receipt = strict_json(self.read('receipts', ownership_id))
                     ownership_raw = self.read('objects', ownership_receipt['content_sha256'])
-                    from .html_support import legal_operator, audit_html, seller_contract
-                    proof = legal_operator(ownership_raw, subject, anchor.get('navn', ''), website,
+                    from .html_support import ownership_proof, audit_html, seller_contract
+                    proof = ownership_proof(ownership_raw, subject, anchor.get('navn', ''), website,
                                            ownership_receipt['effective_url'])
                     if proof and (ownership_receipt.get('organisation_number') != subject
                             or ownership_receipt.get('source_class') != 'company_owned'
@@ -99,18 +103,48 @@ class SourceAudit:
                         raise ValueError('Audit operator source chain mismatch')
                     aliases = {host, host[4:] if host and host.startswith('www.') else 'www.' + host if host else None}
                     if receipt['declared_host'] not in aliases and not proof:
-                        raise ValueError('Audit website discovery anchor mismatch')
-                    if proof and seller_contract(proof['text'], anchor.get('navn', '')):
+                        from .redirect_support import link_failure
+                        reason = link_failure(self, subject, receipt, anchor)
+                        if reason or claim.get('field') == 'verified_website':
+                            raise ValueError('Audit website discovery anchor mismatch: '
+                                             + (reason or 'a redirect link never establishes website ownership'))
+                        # Verified redirect link: the registry-host scope rules of the routes below see the redirect host.
+                        anchor = dict(anchor, hjemmeside=receipt['declared_host'])
+                        if item['extraction_method'] == 'registry_linked_subject_html_v1':
+                            website = receipt['declared_host']
+                    if (proof and proof.get('kind') != 'legal_contact_block'
+                            and seller_contract(proof['text'], anchor.get('navn', ''))):
                         prefix = urlsplit(ownership_receipt['effective_url']).path.rsplit('/', 1)[0] + '/'
                         if not urlsplit(receipt['effective_url']).path.startswith(prefix):
                             raise ValueError('Audit page escapes verified seller path')
-                    if item['extraction_method'] == 'explicit_subject_html_v1':
+                    if item['extraction_method'] == 'registry_host_corroboration_v1' or claim.get('scope') == 'registry_declared_host_name_gate':
+                        from .website_support import audit_website
+                        audit_website(subject, claim, item, receipt, raw, anchor, proof)
+                        continue
+                    if item['extraction_method'] == 'social_profile_link_v1' or claim.get('field') == 'social_profile':
+                        from .social_support import audit_social
+                        audit_social(subject, claim, item, receipt, raw, anchor, proof)
+                        continue
+                    if item['extraction_method'] in ('bounded_company_section_v1', 'dated_post_headline_v1', 'named_company_definition_v1',
+                                                  'registry_linked_business_statement_v1'):
+                        from .content_support import audit_content
+                        audit_content(subject, claim, item, receipt, raw, anchor)
+                        continue
+                    if item['extraction_method'] in ('explicit_subject_html_v1', 'registry_linked_subject_html_v1'):
                         audit_html(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw,
                                    website, ownership_receipt['effective_url'])
+                        continue
+                    if item['extraction_method'] == 'footer_bound_organization_jsonld_v1':
+                        from .profile_support import audit_profile
+                        audit_profile(subject, claim, item, receipt, raw, anchor)
                         continue
                     if item['extraction_method'] == 'scoped_catalogue_html_v2':
                         from .html_support import audit_catalogue
                         audit_catalogue(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw, ownership_receipt)
+                        continue
+                    if item['extraction_method'] in ('careers_page_url_v1', 'dated_article_datetime_v1'):
+                        from .recall_support import audit_recall
+                        audit_recall(subject, claim, item, receipt, raw, anchor, proof)
                         continue
                 (audit_web if receipt['source_class'] == 'company_owned' else audit_api)(subject, claim, item, receipt, raw)
                 continue
