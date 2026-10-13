@@ -1,5 +1,7 @@
 """Public-sector `.no` suffix data for the legal contact block audit (data only, no logic).
 
+The Public Suffix List is MPL-2.0. This module keeps the `.no` second-level names, not the whole list.
+
 Source: the second-level `.no` entries of the Public Suffix List ICANN section (downloaded 2026-10-13 from
 https://publicsuffix.org/list/public_suffix_list.dat) as published in the legal-contact-block spec amendment, plus the
 current counties. A host below one of these belongs to a municipality, county or category registry, not to one company.

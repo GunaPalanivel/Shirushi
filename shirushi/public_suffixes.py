@@ -1,5 +1,7 @@
 """Host data for website-ownership proofs: public suffixes, shared platforms and directories.
 
+The Public Suffix List is MPL-2.0. These tables keep the names this check uses, not the whole list.
+
 Sources (fetched 2026-10-13):
 * NORID_GEOGRAPHIC_AND_CATEGORY: ASCII second-level `.no` entries of the ICANN section of the Public Suffix List
   (https://publicsuffix.org/list/public_suffix_list.dat, section "no", Norid geographical and category second-level
