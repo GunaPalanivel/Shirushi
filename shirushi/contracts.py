@@ -42,7 +42,8 @@ def validate_config(config, policy):
                 'max_retries', 'finalization_reserve_fraction', 'max_response_bytes', 'max_pdf_bytes',
                 'network_enabled', 'enabled_sources', 'settings_origin'}
     official_fields = {'organizer_settings_receipt', 'cpu_limit', 'memory_limit_bytes', 'cutoff', 'wire_schema_confirmed'}
-    live_fields = {'max_total_bytes', 'min_host_interval_seconds', 'max_pages_per_company', 'routing_policy'}
+    live_fields = {'max_total_bytes', 'max_html_bytes', 'min_host_interval_seconds', 'max_pages_per_company',
+                   'routing_policy', 'allow_registry_redirects'}
     missing = required - config.keys()
     errors.extend(f'Missing setting: {key}' for key in sorted(missing))
     allowed = required | live_fields | (official_fields if config.get('mode') == 'official' else set())
@@ -66,6 +67,12 @@ def validate_config(config, policy):
     for key in ('max_total_bytes', 'max_pages_per_company'):
         if key in config and (type(config[key]) is not int or config[key] < 1):
             errors.append(f'{key} must be a positive integer')
+    if 'max_html_bytes' in config:
+        html_cap, cap = config['max_html_bytes'], config.get('max_response_bytes')
+        if type(html_cap) is not int or (type(cap) is int and html_cap < cap) or html_cap < 1:
+            errors.append('max_html_bytes must be an integer >= max_response_bytes')
+    if 'allow_registry_redirects' in config and type(config['allow_registry_redirects']) is not bool:
+        errors.append('allow_registry_redirects must be boolean')
     if 'min_host_interval_seconds' in config:
         v = config['min_host_interval_seconds']
         if type(v) not in (int, float) or not math.isfinite(v) or v < 0:

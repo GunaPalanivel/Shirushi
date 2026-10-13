@@ -22,6 +22,7 @@
   ],
   "settings_origin": "Local development budget, not organizer-supplied limits",
   "max_total_bytes": 209715200,
+  "max_html_bytes": 4194304,
   "min_host_interval_seconds": 0.25,
   "max_pages_per_company": 3,
   "routing_policy": "fixed"
