@@ -22,6 +22,7 @@
     "company_owned"
   ],
   "settings_origin": "Organizer limits from Soham 2026-10-08; local combined-shard validation, official frozen-registry adapter pending",
+  "max_html_bytes": 4194304,
   "max_total_bytes": 209715200,
   "min_host_interval_seconds": 0.25,
   "max_pages_per_company": 6,

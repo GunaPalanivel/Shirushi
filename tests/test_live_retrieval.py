@@ -144,7 +144,7 @@ class LiveSourceTests(unittest.TestCase):
         self.assertEqual(second['changes'], [])
 
     def test_web_jsonld_requires_exact_employer(self):
-        anchor = self.save({'organisasjonsnummer': SUBJECT, 'hjemmeside': 'https://example.com'}, 'brreg_entity')
+        anchor = self.save({'organisasjonsnummer': SUBJECT, 'navn': 'Example AS', 'hjemmeside': 'https://example.com'}, 'brreg_entity')
         for identity, expected in [(SUBJECT, 1), ('999999999', 0)]:
             body = {'@type': 'JobPosting', 'title': 'Engineer', 'datePosted': '2026-10-01',
                     'validThrough': '2099-01-01', 'identifier': 'vacancy-42',
@@ -274,10 +274,10 @@ class LiveSourceTests(unittest.TestCase):
         render(output, Path(self.temp.name) / 'site-activity')
         page = (Path(self.temp.name) / 'site-activity/signalpost' / (SUBJECT + '.html')).read_text()
         self.assertIn('Registered activity:', page)
-        self.assertIn('No verified coverage for: business_products', page)
+        self.assertIn('No verified coverage for: business and products', page)
 
     def test_verified_site_business_description_still_covers_external_families(self):
-        anchor = self.save({'organisasjonsnummer': SUBJECT, 'hjemmeside': 'https://example.com/'}, 'brreg_entity')
+        anchor = self.save({'organisasjonsnummer': SUBJECT, 'navn': 'Example AS', 'hjemmeside': 'https://example.com/'}, 'brreg_entity')
         body = {'@type': 'Organization', 'identifier': SUBJECT,
                 'description': 'Produces industrial pumps', 'url': 'https://example.com/'}
         raw = ('<script type="application/ld+json">' + json.dumps(body) + '</script>').encode()

@@ -46,6 +46,71 @@ jobs:
       - name: Stress ordered outputs and retained state at local batch sizes
         run: python -X dev -W error tools/validate_execution_scale.py --output-dir out/execution-scale
 
+  public-contract-product:
+    name: Published contract, growing batches and browser acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up pinned Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: Cold launch, resource guard, 100/300/1100/1500 membership and replay
+        run: python -X dev -W error tools/validate_official_boundary.py --output-dir out/public-boundary
+      - name: Render 100 supported synthetic profiles
+        run: python -c "from pathlib import Path; from shirushi.run import read_envelopes; from shirushi.showcase import render; render(read_envelopes('out/public-boundary/100/output.jsonl'), Path('out/public-preview'))"
+      - name: Install pinned browser test tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser-check" playwright@1.58.2 --no-audit --no-fund
+          "$RUNNER_TEMP/browser-check/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Search, compare, evidence and 1440/390/320 pixel acceptance
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/browser-check/node_modules/playwright
+        run: node tools/validate_showcase_browser.cjs out/public-preview out/browser-validation.json
+      - name: Retain synthetic checks and product screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: public-contract-product-${{ github.run_id }}
+          path: |
+            out/public-boundary/validation.json
+            out/browser-validation.json
+            out/profile-*.png
+          if-no-files-found: error
+          retention-days: 14
+
+  frozen-live-shard:
+    name: Live published-contract shard with frozen CSV identity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up pinned Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
+      - name: Prepare declared smoke snapshot and audit evaluator command
+        run: python -X dev -W error tools/validate_official_live.py --output-dir out/frozen-live --discovery-access-receipt configs/anysearch-anonymous.json
+      - name: Retain bound summary without source bodies or company exports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frozen-live-shard-${{ github.run_id }}
+          path: |
+            out/frozen-live/validation.json
+            out/frozen-live/report.json
+            out/frozen-live/registry-receipt.json
+            out/frozen-live/input.jsonl
+          if-no-files-found: error
+          retention-days: 14
+
   external-support:
     name: External support (${{ matrix.cohort }})
     runs-on: ubuntu-24.04

@@ -11,6 +11,7 @@ from .contracts import loads, timestamp
 from .fetch import SourceUnavailable, safe_url
 from .json_spans import span as locate
 from .snapshots import digest
+from .identity import legal_anchor
 
 HOST = 'pam-stilling-feed.nav.no'
 SUBUNIT = 'https://data.brreg.no/enhetsregisteret/api/underenheter/'
@@ -38,8 +39,9 @@ def business_statement(description, legal_name):
 
 
 class NavFeed:
-    def __init__(self, fetcher, days=7, max_pages=8):
+    def __init__(self, fetcher, days=184, max_pages=32, cutoff=None):
         self.fetcher, self.days, self.max_pages = fetcher, days, max_pages
+        self.cutoff = timestamp(cutoff) if cutoff else None
         self.lock, self.index, self.token, self.error = threading.Lock(), None, None, None
         self.diagnostics = {'pages': 0, 'active_headers': 0, 'window_complete': False, 'days': days, 'max_pages': max_pages}
 
@@ -51,18 +53,23 @@ class NavFeed:
                 return self.index
             if self.error:
                 raise SourceUnavailable(self.error, 'blocked')
+            self.diagnostics['bootstrap_stage'] = 'public_token'
             raw, _ = self.fetcher.get('https://' + HOST + '/api/publicToken', {HOST})
             tokens = re.findall(r'[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+', raw.decode('utf-8'))
             if len(tokens) != 1:
                 raise SourceUnavailable('Invalid NAV public experimental-token response', 'blocked')
             self.token = tokens[0]
-            since = email.utils.format_datetime(datetime.now(timezone.utc) - timedelta(days=self.days), usegmt=True)
-            url, index = 'https://' + HOST + '/api/v1/feed', {}
+            since = email.utils.format_datetime((self.cutoff or datetime.now(timezone.utc)) - timedelta(days=self.days), usegmt=True)
+            # A cold run has no prior inventory. Seven days of updates cannot
+            # discover all active ads; NAV permits activity up to six months.
+            # The page cap still applies and incomplete inventory stays unknown.
+            url, entries = 'https://' + HOST + '/api/v1/feed', {}
             seen_pages = set()
             for _ in range(self.max_pages):
                 if url in seen_pages:
                     break
                 seen_pages.add(url)
+                self.diagnostics['bootstrap_stage'] = 'feed_page'
                 raw, _ = self.fetcher.get(url, {HOST}, request_headers={'Authorization': 'Bearer ' + self.token,
                                                                  'If-Modified-Since': since})
                 page = loads(raw)
@@ -78,30 +85,41 @@ class NavFeed:
                     header = item.get('_feed_entry', {})
                     if not isinstance(header, dict):
                         raise SourceUnavailable('Invalid NAV feed header')
-                    if header.get('status') != 'ACTIVE' or not isinstance(header.get('businessName'), str):
-                        continue
                     candidate = safe_url(urljoin('https://' + HOST + '/', item['url']), {HOST})
                     if not urlsplit(candidate).path.startswith('/api/v1/'):
                         continue
-                    index.setdefault(company_key(header['businessName']), []).append(candidate)
-                    self.diagnostics['active_headers'] += 1
+                    # A later event replaces the earlier state, including an
+                    # inactive event. Prefer recently observed candidates when
+                    # only three details can be retrieved for one employer.
+                    entries.pop(candidate, None)
+                    entries[candidate] = header
                 next_url = page.get('next_url')
                 if not next_url:
                     self.diagnostics['window_complete'] = True
                     break
                 url = safe_url(urljoin('https://' + HOST + '/', next_url), {HOST})
+            index = {}
+            for candidate, header in reversed(list(entries.items())):
+                if header.get('status') == 'ACTIVE' and isinstance(header.get('businessName'), str):
+                    index.setdefault(company_key(header['businessName']), []).append(candidate)
+                    self.diagnostics['active_headers'] += 1
             self.index = index
+            self.diagnostics['bootstrap_stage'] = 'complete'
             return index
         except (SourceUnavailable, ValueError, KeyError, TypeError) as exc:
             # One shared bootstrap failure must not consume the run budget once
             # per company. A truncated window never establishes absence.
-            self.error = 'NAV feed bootstrap unavailable: ' + str(exc)
+            if self.error is None:
+                self.error = 'NAV feed bootstrap unavailable: ' + str(exc)
             raise SourceUnavailable(self.error, 'blocked') from None
         finally:
             self.lock.release()
 
-    def for_company(self, subject, entity):
-        candidates = self.headers().get(company_key(entity['navn']), [])
+    def for_company(self, subject, entity, employer_names=()):
+        index = self.headers()
+        names = [entity['navn']] + list(employer_names)
+        candidates = [url for name in names if isinstance(name, str) and name.strip()
+                      for url in index.get(company_key(name), [])]
         pages, failures = [], []
         # Name is a retrieval lead only. Every detail must pass the official org bridge.
         for url in list(dict.fromkeys(candidates))[:3]:
@@ -131,7 +149,7 @@ class NavFeed:
         return pages, failures
 
 
-def check_nav(store, subject, sid):
+def check_nav(store, subject, sid, checker=None):
     raw, receipt = store.open(sid)
     detail = loads(raw)
     if not isinstance(detail, dict) or not isinstance(detail.get('ad_content'), dict):
@@ -142,8 +160,7 @@ def check_nav(store, subject, sid):
     org = ad.get('employer', {}).get('orgnr')
     bridge_raw, bridge_receipt = store.open(receipt['employer_snapshot_id'])
     bridge = loads(bridge_raw)
-    anchor_raw, anchor_receipt = store.open(receipt['legal_identity_snapshot_id'])
-    anchor = loads(anchor_raw)
+    anchor = legal_anchor(store, receipt['legal_identity_snapshot_id'], subject, checker)
     if (receipt['organisation_number'] != subject or receipt['source_class'] != 'nav_jobs'
             or receipt['http_status'] != 200 or receipt['sha256'] != digest(raw)
             or urlsplit(receipt['effective_url']).hostname != HOST
@@ -153,12 +170,11 @@ def check_nav(store, subject, sid):
             or bridge_receipt['effective_url'] != bridge_receipt['source_url']
             or bridge_receipt['source_class'] != 'brreg_job_employer'
             or bridge_receipt['sha256'] != digest(bridge_raw) or bridge_receipt['organisation_number'] != subject
-            or bridge.get('organisasjonsnummer') != org or bridge.get('overordnetEnhet') != subject
-            or anchor_receipt['source_class'] != 'brreg_entity' or anchor_receipt['http_status'] != 200
-            or anchor_receipt['source_url'] != 'https://data.brreg.no/enhetsregisteret/api/enheter/' + subject
-            or anchor_receipt['sha256'] != digest(anchor_raw) or anchor.get('organisasjonsnummer') != subject):
+            or bridge.get('organisasjonsnummer') != org or bridge.get('overordnetEnhet') != subject):
         raise ValueError('NAV exact-employer source chain mismatch')
-    cutoff = timestamp(receipt['retrieved_at'])
+    cutoff = timestamp(receipt.get('evaluation_cutoff', receipt['retrieved_at']))
+    if cutoff > timestamp(receipt['retrieved_at']):
+        raise ValueError('Evaluation cutoff is after acquisition')
     posted, expires = timestamp(ad['published']), timestamp(ad['expires'])
     if posted > cutoff or expires < cutoff or not isinstance(ad.get('title'), str) or not ad['title'].strip():
         return []

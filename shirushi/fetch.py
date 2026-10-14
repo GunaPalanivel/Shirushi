@@ -2,6 +2,7 @@
 import http.client
 import ipaddress
 import math
+import re
 import socket
 import ssl
 import time
@@ -10,6 +11,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 from urllib.robotparser import RobotFileParser
+
+from .redirects import redirect_target
 
 USER_AGENT = 'Shirushi/0.1'
 BRAVE_REQUEST_COST_USD = 0.005
@@ -44,6 +47,22 @@ def safe_url(url, allowed_hosts=None):
         return urlunsplit(('https', host, parts.path or '/', parts.query, ''))
     except (ValueError, UnicodeError) as exc:
         raise SourceUnavailable(str(exc), 'blocked') from exc
+
+
+ROBOTS_DIRECTIVE = re.compile(rb'^[ \t]*(?:user-agent|allow|disallow|sitemap|crawl-delay|request-rate)[ \t]*:', re.I | re.M)
+HTML_START = re.compile(rb'\s*(?:<!doctype\s+html|<html[\s>])', re.I)
+
+
+def is_html_page(headers):
+    return headers.get('content-type', '').split(';')[0].strip().lower() == 'text/html'
+
+
+def is_html_without_robots_rules(raw):
+    """RFC 9309 2.3.1.1/2.3.1.5: only parseable rules bind, and an HTML page has none.
+
+    Any directive line keeps the file a robots file, so size or parse doubts stay blocked.
+    """
+    return HTML_START.match(raw.lstrip(b'\xef\xbb\xbf')) is not None and ROBOTS_DIRECTIVE.search(raw) is None
 
 
 def website_candidate(value):
@@ -238,6 +257,8 @@ class Fetcher:
                                         **({'Content-Type': 'application/json'} if request_body is not None else {}), **(request_headers or {})})
             response = connection.getresponse()
             headers = {k.lower(): v for k, v in response.getheaders()}
+            if not is_html_page(headers):  # Only HTML pages may use the larger page cap.
+                limit = min(limit, self.budget.config['max_response_bytes'])
             chunks, total = [], 0
             while True:
                 if response.isclosed():
@@ -261,7 +282,8 @@ class Fetcher:
         finally:
             connection.close()
 
-    def get(self, url, allowed_hosts, robots=False, request_headers=None, cost=0.0, request_body=None):
+    def get(self, url, allowed_hosts, robots=False, request_headers=None, cost=0.0, request_body=None,
+            registry_hosts=None):
         url = safe_url(url, allowed_hosts)
         if request_headers is not None:
             brave = (urlsplit(url).hostname == 'api.search.brave.com' and urlsplit(url).path == '/res/v1/web/search'
@@ -278,10 +300,12 @@ class Fetcher:
                 or not isinstance(request_body, bytes) or len(request_body) > 8192):
             raise SourceUnavailable('POST request scope refused', 'blocked')
         if robots:
-            self.check_robots(url, allowed_hosts)
+            self.check_robots(url, allowed_hosts, registry_hosts)
         original = url
         redirect_chain = []
-        limit = self.budget.config['max_response_bytes']
+        standard = limit = self.budget.config['max_response_bytes']
+        if robots:  # Company pages may carry large inline data: URIs; wire bytes stay charged to the run.
+            limit = max(limit, self.budget.config.get('max_html_bytes', limit))
         redirects = retries = 0
         while True:
             try:
@@ -292,7 +316,7 @@ class Fetcher:
                                             else self.transport(*args))
                     if self.external_transport:
                         self.budget.consume(len(raw))
-                    if len(raw) > limit:
+                    if len(raw) > (limit if is_html_page(headers) else standard):
                         raise SourceUnavailable('Response exceeds per-source byte limit')
             except BudgetExceeded:
                 raise
@@ -309,7 +333,9 @@ class Fetcher:
                     raise SourceUnavailable('Authenticated redirects refused', 'blocked')
                 if redirects >= 3 or not headers.get('location'):
                     raise SourceUnavailable('Redirect bound exceeded', 'blocked')
-                target = safe_url(urljoin(url, headers['location']), allowed_hosts)
+                # Cross-domain hops need registry_hosts: only the registry host's own permanent redirect.
+                target, allowed_hosts = redirect_target(urljoin(url, headers['location']), url, status,
+                                                        redirect_chain, allowed_hosts, registry_hosts, original)
                 redirect_chain.append({'from': url, 'to': target, 'http_status': status})
                 url = target
                 if robots:
@@ -329,7 +355,8 @@ class Fetcher:
                 error = SourceUnavailable(f'HTTP {status}', state)
                 error.response = (raw, {'source_url': original, 'effective_url': url, 'http_status': status,
                     'retrieved_at': datetime.now(timezone.utc).isoformat(),
-                    'content_type': headers.get('content-type', ''), 'source_origin': urlsplit(url).hostname})
+                    'content_type': headers.get('content-type', ''), 'source_origin': urlsplit(url).hostname,
+                    **({'redirect_chain': redirect_chain} if registry_hosts is not None else {})})
                 raise error
             receipt = {'source_url': original, 'effective_url': url, 'http_status': status,
                          'retrieved_at': datetime.now(timezone.utc).isoformat(),
@@ -338,6 +365,9 @@ class Fetcher:
             if robots:
                 with self.robots_condition:
                     receipt['robots_response'] = self.robots_sources['https://' + urlsplit(url).netloc]
+                    if registry_hosts is not None and urlsplit(url).hostname not in registry_hosts:
+                        # The registry host governs the first request of a cross-domain chain.
+                        receipt['registry_robots_response'] = self.robots_sources['https://' + urlsplit(original).netloc]
             return raw, receipt
 
     def advertised_sitemaps(self, url, allowed_hosts):
@@ -356,7 +386,7 @@ class Fetcher:
                 result.append(candidate)
         return result[:2]
 
-    def check_robots(self, url, allowed_hosts):
+    def check_robots(self, url, allowed_hosts, registry_hosts=None):
         parts = urlsplit(url)
         origin = 'https://' + parts.netloc
         with self.robots_condition:
@@ -369,8 +399,8 @@ class Fetcher:
             try:
                 parser = RobotFileParser(origin + '/robots.txt')
                 try:
-                    raw, receipt = self.get(origin + '/robots.txt', allowed_hosts)
-                    if len(raw) > 65536:
+                    raw, receipt = self.get(origin + '/robots.txt', allowed_hosts, registry_hosts=registry_hosts)
+                    if len(raw) > 65536 and not is_html_without_robots_rules(raw):
                         raise SourceUnavailable('Robots response exceeds policy bound', 'blocked')
                     parser.parse(raw.decode('utf-8').splitlines())
                     delay = parser.crawl_delay(USER_AGENT)
@@ -378,7 +408,7 @@ class Fetcher:
                         self.budget.set_host_interval(parts.hostname, delay)
                 except SourceUnavailable as exc:
                     if exc.availability != 'not_available':
-                        raise SourceUnavailable('Robots access could not be established', 'blocked') from exc
+                        raise SourceUnavailable('Robots access could not be established: ' + str(exc), 'blocked') from exc
                     raw, receipt = exc.response
                     parser.parse([])
                 with self.robots_condition:

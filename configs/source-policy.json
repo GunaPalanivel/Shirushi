@@ -49,7 +49,7 @@
         "terms_and_robots_receipt",
         "safe_fetcher"
       ],
-      "scope": "Registry and API URLs are leads; exact JSON-LD subjects or explicit legal operator evidence with separately attributed content. Scoped catalogue offers require seller-contract identity and matching locale. Search snippets never become evidence.",
+      "scope": "Exact JSON-LD subjects or literal exact-name facts on a verified registry-linked host; registry linkage does not prove ownership. Dated news requires named company action, publication evidence and a full legal-name footer corroborating any AS-free rendering. Other HTML requires explicit legal operator evidence with separately attributed content. Scoped catalogue offers require seller-contract identity and matching locale. Search snippets never become evidence.",
       "rate_policy": "Configured per-host spacing and bounded pages; no authenticated or blocked-source bypass"
     },
     {
@@ -83,7 +83,7 @@
       "basis": "NAV documented public experimental token and feed API; exact BRREG employer-subunit bridge required",
       "terms_url": "https://arbeidsplassen.nav.no/vilkar-api",
       "scope": "Active dated postings and explicit employer descriptions only; no job-description inference, contact extraction or absence claims from truncated feeds",
-      "rate_policy": "One shared seven-day window, at most two feed pages per run and three employer-matched details per company, subject to global ledger and host spacing"
+      "rate_policy": "One shared initial window of 184 days, at most 32 feed pages per run and three employer-matched details per company, subject to the global request/byte/time ledger and host spacing. Truncation or outage never establishes absence; later inactive events remove earlier candidate leads."
     },
     {
       "id": "patents_procurement",

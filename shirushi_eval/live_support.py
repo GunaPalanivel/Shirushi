@@ -113,7 +113,7 @@ class StructuredScripts(HTMLParser):
         self.items, self.current = [], None
         self.feed(raw.decode('utf-8'))
     def handle_starttag(self, tag, attrs):
-        if tag == 'script' and dict(attrs).get('type', '').lower() == 'application/ld+json':
+        if tag == 'script' and (dict(attrs).get('type') or '').lower() == 'application/ld+json':
             self.current = ''
     def handle_data(self, data):
         if self.current is not None:
@@ -151,7 +151,7 @@ def audit_web(subject, claim, item, receipt, raw):
         raise ValueError('Audit website fact belongs to another legal entity')
     kind = node.get('@type')
     kinds = kind if isinstance(kind, list) else [kind]
-    cutoff = date.fromisoformat(receipt['retrieved_at'][:10])
+    cutoff = date.fromisoformat(receipt.get('evaluation_cutoff', receipt['retrieved_at'])[:10])
     if field == 'business_description':
         if 'Organization' not in kinds:
             raise ValueError('Audit description has no organization context')

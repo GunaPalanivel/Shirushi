@@ -65,16 +65,27 @@ class ConcurrentAcquisitionTests(unittest.TestCase):
     def test_spacing_and_host_concurrency_survive_parallel_requests(self):
         config = self.config(per_host_concurrency=2)
         config['min_host_interval_seconds'] = 0.02
-        budget = Budget(config, time.monotonic() + 3)
+        budget = Budget(config, time.monotonic() + 5)
         starts, lock = [], threading.Lock()
+        overlapped, release = threading.Event(), threading.Event()
         def transport(*args):
             with lock:
                 starts.append(time.monotonic())
-            time.sleep(0.03)
+                ordinal = len(starts)
+                if ordinal == 2:
+                    overlapped.set()
+            if ordinal <= 2:
+                self.assertTrue(release.wait(3), 'Overlapping requests were not released')
             return 200, {}, b'ok'
         fetcher = Fetcher(budget, transport)
         with ThreadPoolExecutor(max_workers=8) as pool:
-            list(pool.map(lambda _: fetcher.get('https://example.com/', {'example.com'}), range(8)))
+            futures = [pool.submit(fetcher.get, 'https://example.com/', {'example.com'}) for _ in range(8)]
+            try:
+                self.assertTrue(overlapped.wait(2), 'Two requests did not enter the transport')
+            finally:
+                release.set()
+            for future in futures:
+                future.result()
         self.assertTrue(all(b-a >= 0.018 for a, b in zip(starts, starts[1:])))
         self.assertEqual(budget.peak_active, 2)
         self.assertEqual(budget.requests, 8)
