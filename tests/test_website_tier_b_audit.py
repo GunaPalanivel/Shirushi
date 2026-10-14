@@ -146,6 +146,28 @@ class PositiveTests(Base):
             self.assertEqual(found[0]['evidence']['extraction_method'], METHOD, why)
             self.accepts(found[0]['claim'], found[0]['evidence'], why)
 
+    def test_org_number_in_title_and_body_publishes_the_body_element(self):
+        html = ('<!doctype html><html><head><title>Org.nr 923 609 016</title></head><body>'
+                + FILLER + '<footer>Org.nr 923 609 016</footer></body></html>')
+        found, _, _ = self.produce(html)
+        self.assertEqual(len(found), 1)
+        loc = found[0]['evidence']['locator']
+        self.assertNotIn('<title>', html[loc['html_start']:loc['html_end']])
+        self.accepts(found[0]['claim'], found[0]['evidence'])
+
+    def test_implicitly_closed_org_number_element_is_independently_supported(self):
+        html = ('<!doctype html><html><head><title>T</title></head><body>'
+                + FILLER + '<div><p>Org.nr 923 609 016</div></p></body></html>')
+        found, _, _ = self.produce(html)
+        self.assertEqual(len(found), 1)
+        self.accepts(found[0]['claim'], found[0]['evidence'])
+
+    def test_org_number_only_inside_title_is_not_published(self):
+        html = ('<!doctype html><html><head><title>Org.nr 923 609 016</title></head><body>'
+                + FILLER + '</body></html>')
+        found, _, _ = self.produce(html)
+        self.assertEqual(found, [])
+
     def test_both_scores_and_the_corroboration_order_are_re_derived(self):
         both = dict(website='examplepumps.no', email='post@examplepumps.no', host='examplepumps.no')
         found, _, _ = self.produce(doc(title='Pumper', body=FILLER + '<footer>Example Pumps AS</footer>'), **both)

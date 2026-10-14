@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 from .claims import claim_id
 from .contracts import loads
 from .fetch import SourceUnavailable, website_candidate, website_hosts
-from .html_sources import DIRECTORY_HOSTS, OTHER_ENTITY, SHARED_DOMAINS, Sections, ascii_fold, name_domain_tie, names, org_numbers
+from .html_sources import BLOCKS, DIRECTORY_HOSTS, OTHER_ENTITY, SHARED_DOMAINS, Sections, ascii_fold, name_domain_tie, names, org_numbers
 from .redirects import denylisted, registrable_domain
 from .snapshots import digest
 from .web_sources import Page, nodes
@@ -67,9 +67,23 @@ class Home(Sections):
         super().__init__(raw)
 
     def handle_endtag(self, tag):
+        # Same close as the auditor: a mismatched inner tag is not its own node.
         if tag in BLOCK_BREAK:
             self.handle_data(' ')
-        super().handle_endtag(tag)
+        index = next((i for i in range(len(self.stack) - 1, -1, -1) if self.stack[i]['tag'] == tag), None)
+        if index is None:
+            return
+        block = self.stack[index]
+        del self.stack[index:]
+        if not block['hidden'] and not block['quoted']:
+            end = self.source.find('>', self.position())
+            if end >= 0:
+                node = dict(tag=tag, start=block['start'], end=end + 1, attrs=block['attrs'],
+                            text=' '.join(''.join(block['parts']).split()),
+                            ancestors=tuple(parent['tag'] for parent in self.stack))
+                self.nodes.append(node)
+                if tag in BLOCKS:
+                    self.blocks.append(node)
 
     def handle_starttag(self, tag, attrs):
         if tag in BLOCK_BREAK:
@@ -192,7 +206,8 @@ def number_pattern(subject):
 def hard_identifier(home, subject, legal_name, anchor):
     """First hard identifier of this exact entity on the page and the smallest element that carries it."""
     by_size = sorted((n for n in home.nodes if n['tag'] not in ('html', 'body', 'head', 'script', 'style')
-                      and n['text'] and len(n['text']) <= 1500), key=lambda n: (len(n['text']), n['start']))
+                      and 'head' not in n['ancestors'] and n['text'] and len(n['text']) <= 1500),
+                     key=lambda n: (len(n['text']), n['start']))
     number = number_pattern(subject)
     node = next((n for n in by_size if number.search(n['text'])), None)
     if node:
