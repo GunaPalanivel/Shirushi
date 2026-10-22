@@ -19,7 +19,8 @@ def audit_nav(audit, subject, claim, item, receipt, raw):
     bridge_receipt = strict_json(audit.read('receipts', receipt['employer_snapshot_id']))
     bridge_raw = audit.read('objects', bridge_receipt['content_sha256'])
     bridge = strict_json(bridge_raw)
-    endpoint = 'https://data.brreg.no/enhetsregisteret/api/underenheter/' + employer
+    endpoint = ('https://data.brreg.no/enhetsregisteret/api/enheter/' + employer if employer == subject
+                else 'https://data.brreg.no/enhetsregisteret/api/underenheter/' + employer)
     identity = ad['uuid']
     from .registry_support import identity_anchor
     legal = identity_anchor(audit, receipt['legal_identity_snapshot_id'], subject)
@@ -32,7 +33,8 @@ def audit_nav(audit, subject, claim, item, receipt, raw):
             or bridge_receipt['organisation_number'] != subject or bridge_receipt['http_status'] != 200
             or bridge_receipt['source_url'] != endpoint or bridge_receipt['effective_url'] != endpoint
             or bridge_receipt['sha256'] != hashlib.sha256(bridge_raw).hexdigest()
-            or bridge['organisasjonsnummer'] != employer or bridge['overordnetEnhet'] != subject
+            or bridge['organisasjonsnummer'] != employer
+            or (employer != subject and bridge.get('overordnetEnhet') != subject)
             or re.fullmatch('[0-9a-f-]{36}', identity) is None or source['uuid'] != identity
             or not url.endswith('/' + identity)):
         raise ValueError('Audit NAV posting/employer chain mismatch')

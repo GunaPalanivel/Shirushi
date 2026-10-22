@@ -14,7 +14,21 @@ from .snapshots import digest
 from .identity import legal_anchor
 
 HOST = 'pam-stilling-feed.nav.no'
+ENTITY = 'https://data.brreg.no/enhetsregisteret/api/enheter/'
 SUBUNIT = 'https://data.brreg.no/enhetsregisteret/api/underenheter/'
+
+
+def employer_record_url(subject, org):
+    """The employer orgnr is either this company or one of its registered subunits."""
+    return (ENTITY if org == subject else SUBUNIT) + org
+
+
+def employer_matches(subject, org, bridge):
+    if not isinstance(bridge, dict) or bridge.get('organisasjonsnummer') != org:
+        return False
+    if org == subject:
+        return True
+    return bridge.get('overordnetEnhet') == subject
 
 
 def company_key(value):
@@ -39,7 +53,7 @@ def business_statement(description, legal_name):
 
 
 class NavFeed:
-    def __init__(self, fetcher, days=184, max_pages=32, cutoff=None):
+    def __init__(self, fetcher, days=14, max_pages=32, cutoff=None):
         self.fetcher, self.days, self.max_pages = fetcher, days, max_pages
         self.cutoff = timestamp(cutoff) if cutoff else None
         self.lock, self.index, self.token, self.error = threading.Lock(), None, None, None
@@ -60,9 +74,10 @@ class NavFeed:
                 raise SourceUnavailable('Invalid NAV public experimental-token response', 'blocked')
             self.token = tokens[0]
             since = email.utils.format_datetime((self.cutoff or datetime.now(timezone.utc)) - timedelta(days=self.days), usegmt=True)
-            # A cold run has no prior inventory. Seven days of updates cannot
-            # discover all active ads; NAV permits activity up to six months.
-            # The page cap still applies and incomplete inventory stays unknown.
+            # The public feed is oldest-first. A six-month If-Modified-Since plus
+            # the page cap keeps April and drops the current ads. Fourteen days
+            # is longer than a week and, at the observed page rate, finishes
+            # inside the cap. An ad last modified before that window stays unknown.
             url, entries = 'https://' + HOST + '/api/v1/feed', {}
             seen_pages = set()
             for _ in range(self.max_pages):
@@ -137,11 +152,11 @@ class NavFeed:
                 org = employer.get('orgnr')
                 if not isinstance(org, str) or re.fullmatch('[0-9]{9}', org) is None:
                     failures.append({'url': url, 'reason': 'Missing exact employer organisation number'}); continue
-                bridge_raw, bridge_receipt = self.fetcher.get(SUBUNIT + org, {'data.brreg.no'})
+                bridge_raw, bridge_receipt = self.fetcher.get(employer_record_url(subject, org), {'data.brreg.no'})
                 bridge = loads(bridge_raw)
                 if not isinstance(bridge, dict):
                     raise SourceUnavailable('Invalid NAV employer bridge')
-                if bridge.get('organisasjonsnummer') != org or bridge.get('overordnetEnhet') != subject:
+                if not employer_matches(subject, org, bridge):
                     failures.append({'url': url, 'reason': 'NAV employer belongs to another legal entity'}); continue
                 pages.append((raw, receipt, bridge_raw, bridge_receipt))
             except SourceUnavailable as exc:
@@ -166,11 +181,11 @@ def check_nav(store, subject, sid, checker=None):
             or urlsplit(receipt['effective_url']).hostname != HOST
             or not urlsplit(receipt['effective_url']).path.startswith('/api/v1/')
             or receipt['source_url'] != receipt['effective_url'] or detail.get('status') != 'ACTIVE'
-            or bridge_receipt['source_url'] != SUBUNIT + str(org) or bridge_receipt['http_status'] != 200
+            or bridge_receipt['source_url'] != employer_record_url(subject, str(org)) or bridge_receipt['http_status'] != 200
             or bridge_receipt['effective_url'] != bridge_receipt['source_url']
             or bridge_receipt['source_class'] != 'brreg_job_employer'
             or bridge_receipt['sha256'] != digest(bridge_raw) or bridge_receipt['organisation_number'] != subject
-            or bridge.get('organisasjonsnummer') != org or bridge.get('overordnetEnhet') != subject):
+            or not employer_matches(subject, org, bridge)):
         raise ValueError('NAV exact-employer source chain mismatch')
     cutoff = timestamp(receipt.get('evaluation_cutoff', receipt['retrieved_at']))
     if cutoff > timestamp(receipt['retrieved_at']):

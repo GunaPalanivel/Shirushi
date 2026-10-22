@@ -249,6 +249,28 @@ class BatchRunnerTests(unittest.TestCase):
         self.assertEqual(decision['claim']['value'], {'role_code': 'DAGL', 'role_label': 'Daglig leder', 'person_name': 'A Person'})
         self.assertNotIn('1980-01-01', json.dumps(decision))
 
+    def test_entity_auditor_role_is_published_from_its_name_node(self):
+        subject = self.subjects[0]
+        url = f'https://data.brreg.no/enhetsregisteret/api/enheter/{subject}/roller'
+        body = {'_links': {'self': {'href': url}, 'enhet': {'href': url[:-7]}},
+                'rollegrupper': [{'sistEndret': '2026-01-01', 'roller': [
+                    {'type': {'kode': 'REVI', 'beskrivelse': 'Revisor'}, 'avregistrert': False,
+                     'enhet': {'navn': ['ERNST & YOUNG AS'], 'organisasjonsnummer': '976389387', 'erSlettet': False}}]}]}
+        raw = json.dumps(body).encode()
+        path = self.root / 'auditor.json'
+        path.write_bytes(raw)
+        entry = {'organisation_number': subject, 'source_class': 'brreg_roles_snapshot', 'path': 'auditor.json',
+                 'source_url': url, 'effective_url': url, 'http_status': 200,
+                 'access_policy': 'brreg-open-data-nlod-2.0', 'retrieved_at': '2026-01-02T00:00:00Z',
+                 'sha256': hashlib.sha256(raw).hexdigest()}
+        sid = acquire_role(entry, self.root / 'manifest.json', self.store, 100000)
+        candidate = propose_roles(self.store, sid)[0]
+        decision = check_role(self.store, candidate, subject)
+        self.assertTrue(decision['accepted'], decision.get('reason'))
+        self.assertEqual(decision['claim']['value']['organisation_number'], '976389387')
+        self.assertEqual(decision['claim']['value']['person_name'], 'ERNST & YOUNG AS')
+        self.assertIn('ERNST & YOUNG AS', decision['evidence']['claim_span'])
+
     def test_role_checker_rejects_other_subject_inactive_wrong_value_and_locator(self):
         sid, body, entry = self.role_snapshot()
         candidate = propose_roles(self.store, sid)[0]

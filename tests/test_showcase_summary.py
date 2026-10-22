@@ -289,7 +289,9 @@ class SiteTests(unittest.TestCase):
         self.assertIn('id="compare-panel"', html)
         self.assertEqual(len(re.findall(r'<li class="company"', html)), 4)
         self.assertRegex(html, r'class="company"[^>]*data-areas="\d"')
-        self.assertIn('aria-pressed="false"', html)
+        self.assertIn('data-company=', html)
+        self.assertIn('>Compare selected companies</button>', html)
+        self.assertIn('id="comparison"', html)
 
     def test_index_search_text_covers_name_number_municipality_and_industry(self):
         envelopes, base = self.build(1)

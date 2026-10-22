@@ -4,6 +4,7 @@ import gzip
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 
 FAMILIES = ('business_products', 'people', 'operating_locations', 'financials_history',
@@ -36,22 +37,42 @@ def strict_json(text):
 
 
 def normalized_role(role):
-    if role.get('avregistrert') is not False:
+    if role.get('avregistrert') is not False or role.get('fratraadt') is True:
         return None
-    person = role.get('person')
-    if not isinstance(person, dict) or person.get('erDoed') is not False:
+    kind = role.get('type') if isinstance(role.get('type'), dict) else {}
+    code, label = kind.get('kode'), kind.get('beskrivelse')
+    if not isinstance(code, str) or not code.strip() or not isinstance(label, str) or not label.strip():
         return None
-    kind = role.get('type', {})
-    if kind.get('kode') not in ('DAGL', 'LEDE', 'MEDL', 'NEST', 'VARA'):
+    person = role.get('person') if isinstance(role.get('person'), dict) else None
+    if person is not None:
+        if person.get('erDoed') is not False:
+            return None
+        names = person.get('navn', {})
+        if not all(isinstance(names.get(k), str) and names[k].strip() for k in ('fornavn', 'etternavn')):
+            return None
+        if names.get('mellomnavn') is not None and not isinstance(names.get('mellomnavn'), str):
+            return None
+        parts = [names['fornavn']]
+        if names.get('mellomnavn'):
+            parts.append(names['mellomnavn'])
+        parts.append(names['etternavn'])
+        return {'role_code': code, 'role_label': label, 'person_name': ' '.join(parts)}
+    entity = role.get('enhet') if isinstance(role.get('enhet'), dict) else None
+    if entity is None or entity.get('erSlettet') is True:
         return None
-    names = person.get('navn', {})
-    if not all(isinstance(names.get(k), str) and names[k].strip() for k in ('fornavn', 'etternavn')):
+    org = entity.get('organisasjonsnummer')
+    holder = entity.get('navn')
+    if isinstance(holder, list):
+        if len(holder) != 1 or not isinstance(holder[0], str) or not holder[0].strip():
+            return None
+        name = holder[0].strip()
+    elif isinstance(holder, str) and holder.strip():
+        name = holder.strip()
+    else:
         return None
-    parts = [names['fornavn']]
-    if names.get('mellomnavn'):
-        parts.append(names['mellomnavn'])
-    parts.append(names['etternavn'])
-    return {'role_code': kind['kode'], 'role_label': kind['beskrivelse'], 'person_name': ' '.join(parts)}
+    if not isinstance(org, str) or re.fullmatch(r'[0-9]{9}', org) is None:
+        return None
+    return {'role_code': code, 'role_label': label, 'person_name': name, 'organisation_number': org}
 
 
 def build_reference(subjects, registry_rows, receipts, source_directory):

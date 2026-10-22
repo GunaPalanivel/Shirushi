@@ -135,10 +135,10 @@ def main(argv=None):
         folder = args.work_dir / f'shard-{index:04d}'
         folder.mkdir()
         config = load(ROOT / 'configs/shard-validation.json')
-        # NAV stays out of V1: listings have no organisation number, and the host
-        # often takes long enough to consume the shard budget.
+        # NAV is one shared feed window per shard, then at most three ads per company.
+        # An ad is published only when its employer orgnr is this company or a subunit.
         config.update(sample_size=len(batch), enabled_sources=['frozen_registry', 'brreg_roles',
-            'brreg_accounts', 'brreg_subunits', 'company_owned'],
+            'brreg_accounts', 'brreg_subunits', 'company_owned', 'nav_jobs'],
             settings_origin='Soham organizer email 2026-10-08, docs/organizer-run-limits.json; published-contract candidate')
         if args.offline:
             config.update(network_enabled=False, enabled_sources=['frozen_registry'])

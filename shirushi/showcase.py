@@ -20,6 +20,7 @@ CSS = '''body{font:16px system-ui;margin:1rem auto;padding:0 1rem;max-width:70re
 a{color:#1247a0} :focus-visible{outline:3px solid #1247a0;outline-offset:3px} input{font:inherit;padding:.5rem;max-width:95%}
 table{width:100%;border-collapse:collapse} td,th{text-align:left;border-bottom:1px solid #ddd;padding:.6rem;vertical-align:top;overflow-wrap:anywhere}
 pre{white-space:pre-wrap;overflow-wrap:anywhere}details{margin:.4rem 0} .compare{display:flex;gap:1rem;flex-wrap:wrap}.compare section{flex:1;min-width:0;width:100%}
+#comparison,#comparison p,#comparison a{overflow-wrap:anywhere}
 button{font:inherit;padding:.6rem;margin:.4rem 0} .context{display:block;font-size:.9rem;color:#42556b} .summary{line-height:1.7}
 [hidden]{display:none!important}
 @media(max-width:600px){table,tbody,tr,td,th{display:block}thead{display:none}td,th{padding:.3rem}tr{margin-bottom:1rem;border-bottom:1px solid #bbb}.compare{display:block}}'''
@@ -192,7 +193,11 @@ def summary(envelope, prefix=''):
         description = next((c for c in available if c['field'] == 'registered_activity'), None)
     def supported(claim):
         return '<a href="' + escape(claim_link(claim, prefix), quote=True) + '">' + text(display_value(claim)) + '</a>'
-    lines = [(supported(name) if name else envelope['organisation_number']) + ' (' + envelope['organisation_number'] + ').']
+    when = str((envelope.get('run') or {}).get('completed_at') or '')[:10]
+    parts = when.split('-')
+    dated = len(parts) == 3 and [len(part) for part in parts] == [4, 2, 2] and all(part.isdigit() for part in parts)
+    lead = (supported(name) if name else envelope['organisation_number']) + ' (' + envelope['organisation_number'] + ').'
+    lines = [('As of ' + when + ': ' + lead) if dated else lead]
     if description:
         label = 'Registered activity: ' if description['field'] == 'registered_activity' else 'Supported description: '
         lines.append(label + supported(description) + '.')
@@ -203,6 +208,16 @@ def summary(envelope, prefix=''):
     if revenue:
         latest = max(revenue, key=lambda c: (c['period']['tilDato'], c['period']['fraDato']))
         lines.append('Latest supported entity revenue: ' + supported(latest) + ' (' + text(context(latest)) + ').')
+        ordered = sorted(revenue, key=lambda c: (c['period']['tilDato'], c['period']['fraDato']))
+        if len(ordered) >= 2:
+            prior, current = ordered[-2], ordered[-1]
+            prior_amount, current_amount = prior.get('value'), current.get('value')
+            if (isinstance(prior_amount, dict) and isinstance(current_amount, dict)
+                    and prior_amount.get('currency') == current_amount.get('currency')
+                    and isinstance(prior_amount.get('amount'), (int, float))
+                    and isinstance(current_amount.get('amount'), (int, float))
+                    and prior is not current):
+                lines.append('Supported entity revenue moved from ' + supported(prior) + ' to ' + supported(current) + '.')
     changed = sum(c.get('kind') == 'value_changed' for c in envelope['changes'])
     lines.append(str(changed) + ' supported value changes in this run.')
     unknown = [o['family'] for o in envelope.get('opportunities', []) if o['status'] != 'covered']
@@ -295,6 +310,37 @@ def search_text(envelope):
     return ' '.join(bits).lower()
 
 
+def shown_value(claim):
+    shown = display_value(claim)
+    return shown if isinstance(shown, str) else json.dumps(shown, ensure_ascii=False, sort_keys=True)
+
+
+def compare_section(envelope):
+    """One comparison column. A supported value is a link to its source quote on this page."""
+    evidence = {item['id']: item for item in envelope['evidence']}
+    name = next((c['value'] for c in envelope['claims']
+                 if c['field'] == 'legal_name' and c['availability'] == 'available'), envelope['organisation_number'])
+    parts = ['<section><h2>' + text(name) + '</h2>']
+    seen = set()
+    for claim in envelope['claims']:
+        parts.append('<p>' + text(label(claim['field'])) + ': ')
+        refs = claim.get('evidence_ids') or []
+        item = evidence.get(refs[0]) if refs else None
+        shown = shown_value(claim)
+        if item and item.get('content_sha256') and item.get('retrieved_at'):
+            target = anchor(refs[0])
+            parts.append('<a href="#' + target + '">' + text(shown) + '</a>')
+            if target not in seen:
+                seen.add(target)
+                parts.append('<details id="' + target + '"><summary>Evidence</summary><p>SHA-256: ' +
+                             text(item['content_sha256']) + '</p><p>Retrieved: ' + text(item['retrieved_at']) + '</p></details>')
+        else:
+            parts.append(text(shown))
+        parts.append('</p>')
+    parts.append('</section>')
+    return ''.join(parts)
+
+
 def render(envelopes, directory):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=False)
@@ -307,20 +353,24 @@ def render(envelopes, directory):
         publish_new(root / (subject + '.html'), document(str(name), '<a href="index.html">All companies</a><h1>' + text(name) +
             '</h1><p>Organisation number: ' + subject + '</p>' + profile(envelope)))
         flags = area_flags(envelope)
-        cards.append('<li class="company" data-areas="%d" data-search="%s" data-website="%d" data-description="%d" data-profiles="%d" data-activity="%d" data-financials="%d" data-changed="%d"><input type="checkbox" aria-label="Compare %s"><a href="%s.html">%s</a><p>%s</p></li>' % (
-            sum(flags.values()), escape(search_text(envelope), quote=True),
+        cards.append('<li class="company" data-company="%s" data-areas="%d" data-search="%s" data-website="%d" data-description="%d" data-profiles="%d" data-activity="%d" data-financials="%d" data-changed="%d"><input type="checkbox" aria-label="Compare %s"><a href="%s.html">%s</a><p>%s</p></li>' % (
+            escape(subject, quote=True), sum(flags.values()), escape(search_text(envelope), quote=True),
             int(flags['website']), int(flags['description']), int(flags['profiles']), int(flags['activity']),
-            int(flags['financials']), int(flags['changed']), escape(str(name), quote=True),
+            int(flags['financials']), int(flags['changed']), escape(subject, quote=True),
             escape(subject, quote=True), text(name), text(subject)))
     filters = ''.join(
         '<button type="button" data-filter="%s" aria-pressed="false">%s</button>' % pair
         for pair in (('website', 'Website'), ('description', 'Description'), ('profiles', 'Profiles'),
                      ('activity', 'Activity'), ('financials', 'Financials'), ('changed', 'Changed')))
+    packed = json.dumps({envelope['organisation_number']: compare_section(envelope) for envelope in envelopes},
+                        ensure_ascii=False).replace('<', '\\u003c')
     body = ('<h1>Signalpost</h1><p>Research companies, compare supported facts and inspect their original sources.</p>' +
             '<label for="search">Search company number, name or activity</label><input id="search" type="search">' +
             '<p id="results" role="status">' + str(len(cards)) + ' companies shown</p>' + filters +
             '<label for="sort">Sort</label><select id="sort"><option value="name">Name</option><option value="areas">Most data</option></select>' +
-            '<div id="compare-panel"></div><ul id="companies">' + ''.join(cards) + '</ul>' + INDEX_SCRIPT)
+            '<button type="button" id="compare-go">Compare selected companies</button>' +
+            '<div id="comparison" class="compare"></div><div id="compare-panel"></div><ul id="companies">' +
+            ''.join(cards) + '</ul><script type="application/json" id="compare-data">' + packed + '</script>' + INDEX_SCRIPT)
     publish_new(root / 'index.html', document('Signalpost', body))
 
 
@@ -397,6 +447,16 @@ INDEX_SCRIPT = '''<script>
       table.appendChild(row);
     });
     panel.appendChild(table);
+  });
+  var packed = JSON.parse(document.getElementById('compare-data').textContent);
+  document.getElementById('compare-go').addEventListener('click', function () {
+    var html = '';
+    cards.forEach(function (card) {
+      var box = card.querySelector('input');
+      if (!box || !box.checked) return;
+      html += packed[card.getAttribute('data-company')] || '';
+    });
+    document.getElementById('comparison').innerHTML = html;
   });
 })();
 </script>'''

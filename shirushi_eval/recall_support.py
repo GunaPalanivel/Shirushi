@@ -2,7 +2,7 @@
 import hashlib
 import json
 import re
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from shirushi.html_sources import Sections
 
@@ -113,6 +113,34 @@ def identity(subject, claim, field, item_key):
         fail('claim identity differs from the derived value')
 
 
+ROLE_PATH = re.compile(r'job|career|karriere|stilling|ledig', re.I)
+GENERIC_ROLE = re.compile(
+    r'^(?:careers?|jobs?|karriere|ledige stillinger|se alle|vis alle|read more|les mer|home|hjem)$', re.I)
+
+
+def role_on_page(raw, page_url, locator):
+    page = Sections(raw)
+    host = urlsplit(page_url).hostname
+    node = next((n for n in page.nodes if n['tag'] == 'a' and n['start'] == locator.get('html_start')
+                 and n['end'] == locator.get('html_end')), None)
+    if node is None or not host:
+        return None
+    text = ' '.join((node.get('text') or '').split())
+    href = (node.get('attrs') or {}).get('href') or ''
+    if not href or not 4 <= len(text) <= 80 or GENERIC_ROLE.search(text):
+        return None
+    try:
+        absolute = canonical_url(urljoin(page_url, href))
+    except ValueError:
+        return None
+    if urlsplit(absolute).hostname != host:
+        return None
+    path = (urlsplit(absolute).path or '').lower()
+    if ROLE_PATH.search(path) is None or absolute.rstrip('/') == page_url.rstrip('/'):
+        return None
+    return absolute, page.source[node['start']:node['end']]
+
+
 def audit_recall(subject, claim, item, receipt, raw, anchor, proof):
     scope_ok(claim, receipt, anchor, proof)
     accepted_website(raw, subject, anchor, receipt, proof)
@@ -130,6 +158,17 @@ def audit_recall(subject, claim, item, receipt, raw, anchor, proof):
         if found is None or claim.get('value') != expected or item.get('claim_span') != found[0] or item.get('locator') != found[1]:
             fail('hiring value or span differs from the page')
         identity(subject, claim, 'hiring_signal', expected)
+        return
+    if method == 'career_role_link_v1':
+        if claim.get('field') != 'hiring_signal':
+            fail('claim is not a role-link claim')
+        page_url = receipt['effective_url']
+        if not careers_url(page_url):
+            fail('role link is not on a careers page')
+        found = role_on_page(raw, page_url, item.get('locator') or {})
+        if found is None or claim.get('value') != found[0] or item.get('claim_span') != found[1]:
+            fail('role link value or span differs from the page')
+        identity(subject, claim, 'hiring_signal', found[0])
         return
     if method == 'dated_article_datetime_v1':
         if claim.get('field') != 'dated_news':

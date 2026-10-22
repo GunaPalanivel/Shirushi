@@ -167,14 +167,21 @@ class SourceAudit:
                 role = group['roller'][role_index]
                 if normalized_role(role) != claim['value'] or claim.get('source_registered_change_date') != group['sistEndret']:
                     raise ValueError('Audit registered role value mismatch')
-                if strict_json(item['claim_span']) != role['person']['navn']:
+                if isinstance(role.get('person'), dict):
+                    expected_name = role['person']['navn']
+                else:
+                    holder = role['enhet']['navn']
+                    expected_name = holder[0] if isinstance(holder, list) else holder
+                if strict_json(item['claim_span']) != expected_name:
                     raise ValueError('Audit role name span mismatch')
                 for field, source_key in [('type', 'type'), ('active', 'avregistrert')]:
                     text = item['support_spans'][field]
                     if text.encode('utf-8') not in raw or strict_json(text) != role[source_key]:
                         raise ValueError('Audit role supporting span mismatch')
-                canonical = json.dumps([claim['value']['role_code'], claim['value']['person_name']],
-                                       ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+                identity = [claim['value']['role_code'], claim['value']['person_name']]
+                if claim['value'].get('organisation_number'):
+                    identity.append(claim['value']['organisation_number'])
+                canonical = json.dumps(identity, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
                 if claim['field'] != 'registered_role:' + hashlib.sha256(canonical).hexdigest()[:24]:
                     raise ValueError('Audit role semantic key mismatch')
             else:

@@ -236,6 +236,31 @@ class OfficialBoundaryTests(unittest.TestCase):
             self.assertEqual(len(pages), expected)
             self.assertEqual(budget.requests, 2)
 
+    def test_nav_parent_employer_fetches_the_entity_record(self):
+        from shirushi.nav_jobs import NavFeed, HOST, ENTITY, company_key
+        from shirushi.fetch import Budget, Fetcher
+        uuid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        url = 'https://' + HOST + '/api/v1/feedentry/' + uuid
+        config = load(ROOT / 'configs/shard-validation.json')
+        budget = Budget(config, time.monotonic() + 10)
+        seen = []
+        def transport(request_url, *_):
+            seen.append(request_url)
+            if request_url == url:
+                body = {'status': 'ACTIVE', 'ad_content': {'employer': {'orgnr': SUBJECT}}}
+            elif request_url == ENTITY + SUBJECT:
+                body = {'organisasjonsnummer': SUBJECT, 'navn': NAME}
+            else:
+                raise AssertionError('Unexpected retrieval')
+            return 200, {'content-type': 'application/json'}, json.dumps(body).encode()
+        feed = NavFeed(Fetcher(budget, transport))
+        feed.index = {company_key(NAME): [url]}
+        feed.token = 'public'
+        pages, failures = feed.for_company(SUBJECT, {'navn': NAME})
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(failures, [])
+        self.assertEqual(seen, [url, ENTITY + SUBJECT])
+
     def test_email_domain_is_only_a_lead_and_generic_provider_is_skipped(self):
         from shirushi.live import acquire_website
         class Fetch:

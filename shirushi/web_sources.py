@@ -303,11 +303,12 @@ def check_web(store, subject, sid, checker=None):
         decisions.append({'field': field, 'family': 'website_owned_profiles', 'accepted': True,
                           'claim': claim, 'evidence': evidence})
     if any(d['field'] == 'verified_website' and d.get('accepted') for d in decisions):
-        from .careers_sources import METHOD as CAREERS_METHOD, hiring_values
+        from .careers_sources import METHOD as CAREERS_METHOD, ROLE_METHOD, hiring_values, role_links
         from .news_sources import METHOD as NEWS_METHOD, news_values
         page_scope = 'company_owned_html' if proof else 'registry_linked_html'
         page_url = receipt['effective_url']
         for method, values in ((CAREERS_METHOD, hiring_values(raw, page_url)),
+                               (ROLE_METHOD, role_links(raw, page_url)),
                                (NEWS_METHOD, news_values(raw, page_url))):
             for field, value, span, loc, support in values:
                 item = value if isinstance(value, str) else digest(

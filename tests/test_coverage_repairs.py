@@ -66,6 +66,39 @@ class CoverageRepairTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'chain mismatch'):
             self.nav(parent='999999999')
 
+    def test_nav_parent_orgnr_is_the_company_itself(self):
+        from shirushi.nav_jobs import ENTITY
+        anchor = self.save({'organisasjonsnummer': SUBJECT, 'navn': 'Company AS'},
+                           ENTITY + SUBJECT, 'brreg_entity')
+        bridge = self.save({'organisasjonsnummer': SUBJECT, 'navn': 'Company AS'},
+                           ENTITY + SUBJECT, 'brreg_job_employer')
+        ad = {'uuid': UUID, 'title': 'Vehicle painter', 'published': '2026-10-07T13:14:17+02:00',
+              'expires': '2026-11-02T00:00:00+01:00', 'employer': {'orgnr': SUBJECT}}
+        sid = self.save({'uuid': UUID, 'status': 'ACTIVE', 'ad_content': ad}, JOB_URL,
+                        'nav_jobs', employer_snapshot_id=bridge, legal_identity_snapshot_id=anchor)
+        decisions = check_nav(self.store, SUBJECT, sid)
+        self.assertEqual([d['field'] for d in decisions], ['job_posting'])
+        self.audit(decisions)
+
+    def test_career_role_link_is_rederived_by_the_auditor(self):
+        from shirushi.careers_sources import hiring_values, role_links
+        from shirushi.claims import claim_id
+        from shirushi_eval.recall_support import audit_recall
+        raw = ('<html><head><title>Karriere</title></head><body><h1>Karriere</h1>'
+               '<a href="/karriere/maler">Maler</a><a href="/om">Om oss</a></body></html>').encode()
+        url = 'https://example.com/karriere'
+        self.assertEqual([row[1] for row in hiring_values(raw, url)], [url])
+        roles = list(role_links(raw, url))
+        self.assertEqual([row[1] for row in roles], ['https://example.com/karriere/maler'])
+        field, value, span, loc, support = roles[0]
+        claim = {'claim_id': claim_id(SUBJECT, field, 'company_owned_html', value), 'field': field,
+                 'value': value, 'scope': 'company_owned_html', 'family': 'jobs_dated_activity',
+                 'item_key': value, 'period': None, 'availability': 'available', 'evidence_ids': ['e']}
+        item = {'extraction_method': 'career_role_link_v1', 'claim_span': span, 'locator': loc,
+                'support_spans': support}
+        audit_recall(SUBJECT, claim, item, {'effective_url': url}, raw,
+                     {'navn': 'Company AS', 'hjemmeside': 'https://example.com'}, True)
+
     def test_nav_expired_future_or_empty_titles_never_count(self):
         for change in [{'expires': '2026-10-01T00:00:00Z'}, {'published': '2099-01-01T00:00:00Z'}, {'title': ' '}]:
             self.assertEqual(self.nav(**change), [])
