@@ -1,0 +1,214 @@
+{
+ "title": "Shirushi 100-company smoke test (summary; envelopes and source bodies are not included)",
+ "agent_name": "Shirushi",
+ "commit": "e60a44f7f07aa449f5a4faa116edd2bba11050eb",
+ "run_label": "smoke-100",
+ "scope": "live_published_contract_candidate",
+ "official_score": null,
+ "input_count": 100,
+ "output_count": 100,
+ "terminal_status_counts": {
+  "completed": 100
+ },
+ "failed_companies": 0,
+ "cutoff": "2026-10-13T19:54:37Z",
+ "input_sha256": "2a5c70b14bb43bcd65528a9858f00d5aa9d87b2dc3591caf65a7b2048171d30b",
+ "output_sha256": "f13a1bbc45164462a1d70cbed6a1b79979019ff2c2bd038858209adf6ae63efa",
+ "registry_sha256": "36c1cf45aee838e605e430523094bcc8c43b58fe2d408272e587c3d356727446",
+ "registry_receipt_sha256": "fbe58748222f562101b39564eff3ff967239a0ab94da11467d6e55b46690e3b9",
+ "sample": {
+  "seed": "shirushi-smoke-20261013-v1",
+  "algorithm": "sort universe organisation numbers (minus exclusions) by sha256(\"<seed>:<organisation_number>\") hex ascending; take first N; input order = that rank order; no website or page content inspected before selection",
+  "universe_archive_sha256": "1c89710e5b01f8617e86d09fbdff4a52f2f8dbbba297e74f7164b5984f5a0384",
+  "universe_rows": 411160,
+  "selected_with_registry_website": 8,
+  "selected_with_registry_email": 25,
+  "selected_with_registry_employees": 9,
+  "exclusion_file_sha256": "38afed92093fc5fcf1625cf3726590ed1ab74b0f5d2ff6dc8146f603561dbed9"
+ },
+ "limits_per_shard": {
+  "seconds": 2700,
+  "requests": 2000,
+  "cost_usd": 10
+ },
+ "measured": {
+  "requests": 861,
+  "cost_usd": 0.0,
+  "launcher_runtime_s": 1029.3,
+  "shard_launcher_and_audit_s": 1028.2,
+  "p95_company_completion_s": 1028.5,
+  "response_bytes": 28578121,
+  "peak_network_requests": 8
+ },
+ "planner_requests_by_source": {
+  "brreg_roles": 100,
+  "brreg_accounts": 100,
+  "brreg_subunits": 100,
+  "company_owned": 561
+ },
+ "planner_attempts_by_source": {
+  "brreg_roles": 100,
+  "brreg_accounts": 100,
+  "brreg_subunits": 100,
+  "company_owned": 100
+ },
+ "claim_counts_by_field_family": {
+  "annual_net_profit": 282,
+  "annual_operating_profit": 275,
+  "annual_profit_before_tax": 277,
+  "annual_revenue": 243,
+  "coverage": 320,
+  "current_liabilities": 270,
+  "industry_code": 100,
+  "industry_label": 100,
+  "latest_submitted_accounts_year": 100,
+  "legal_form": 100,
+  "legal_name": 100,
+  "long_term_liabilities": 222,
+  "official_website": 6,
+  "operating_location": 75,
+  "product_service": 1,
+  "registered_employees": 100,
+  "registered_municipality": 100,
+  "registered_municipality_number": 100,
+  "registered_role": 270,
+  "social_profile": 9,
+  "total_assets": 282,
+  "total_equity": 281,
+  "total_liabilities": 282
+ },
+ "claim_availability_by_field_family": {
+  "annual_net_profit": {
+   "available": 282
+  },
+  "annual_operating_profit": {
+   "available": 275
+  },
+  "annual_profit_before_tax": {
+   "available": 277
+  },
+  "annual_revenue": {
+   "available": 243
+  },
+  "coverage": {
+   "not_available": 320
+  },
+  "current_liabilities": {
+   "available": 270
+  },
+  "industry_code": {
+   "available": 100
+  },
+  "industry_label": {
+   "available": 100
+  },
+  "latest_submitted_accounts_year": {
+   "available": 100
+  },
+  "legal_form": {
+   "available": 100
+  },
+  "legal_name": {
+   "available": 100
+  },
+  "long_term_liabilities": {
+   "available": 222
+  },
+  "official_website": {
+   "available": 6
+  },
+  "operating_location": {
+   "available": 75
+  },
+  "product_service": {
+   "available": 1
+  },
+  "registered_employees": {
+   "available": 9,
+   "not_available": 91
+  },
+  "registered_municipality": {
+   "available": 100
+  },
+  "registered_municipality_number": {
+   "available": 100
+  },
+  "registered_role": {
+   "available": 270
+  },
+  "social_profile": {
+   "available": 9
+  },
+  "total_assets": {
+   "available": 282
+  },
+  "total_equity": {
+   "available": 281
+  },
+  "total_liabilities": {
+   "available": 282
+  }
+ },
+ "companies_with_available_official_website": 6,
+ "resource_guard": {
+  "supervisor_address_space_limit_bytes": 2000000000,
+  "worker_address_space_limit_bytes": 8000000000,
+  "combined_process_address_space_ceiling_bytes": 14000000000,
+  "snapshot_store_limit_bytes": 8000000000,
+  "enforcement": "Linux affinity, inherited RLIMIT_AS, bounded snapshot writes and supervised shard deadline"
+ },
+ "observed_memory": {
+  "launcher_peak_rss_bytes": 220753920,
+  "child_peak_rss_bytes": 309424128,
+  "scope": "Separate process high-water RSS, not simultaneous summed memory"
+ },
+ "checks": {
+  "1_terminal_envelopes": "PASS",
+  "2_public_contract": "PASS",
+  "3_report_binding": "PASS",
+  "4_limits": "PASS",
+  "5_source_audit": "PASS",
+  "6_structural_support": "PASS",
+  "7_determinism_two_runs": "FAIL",
+  "8_public_file_scan": "PASS"
+ },
+ "check_detail": {
+  "1_terminal_envelopes": {
+   "envelopes": 100,
+   "input": 100,
+   "input_order": true,
+   "terminal_status": {
+    "completed": 100
+   },
+   "rows_with_errors": 0
+  },
+  "3_report_binding": {
+   "status": "completed",
+   "failed": 0,
+   "shards": 1
+  },
+  "4_limits": {
+   "requests": 861,
+   "cost_usd": 0.0,
+   "launcher_runtime_s": 1029.3,
+   "shard_launcher_and_audit_s": 1028.2,
+   "p95_company_completion_s": 1028.5,
+   "response_bytes": 28578121,
+   "peak_network_requests": 8
+  },
+  "5_source_audit": {
+   "exit_code": 0,
+   "stderr_last_line": ""
+  }
+ },
+ "determinism": {
+  "differing_companies": 100,
+  "method": "two full runs, same input, cutoff and run id; contract time fields dropped"
+ },
+ "model_calls": 0,
+ "search_provider_calls": "see command; provider-free path sends no search queries",
+ "notes": [
+  "Validation is local; no official score is claimed.",
+  "Claim values, evidence spans and fetched page text are deliberately omitted from this public file."
+ ]
+}

@@ -2,13 +2,14 @@
 import argparse
 import json
 import platform
+import math
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .artifacts import publish_new
 from .batch import envelope, failure_decisions, run_supervised
-from .contracts import ROOT, load, loads, validate_config, validate_envelopes, validate_inputs
+from .contracts import ROOT, load, loads, timestamp, validate_config, validate_envelopes, validate_inputs
 from .snapshots import digest
 
 MAX_INPUT_BYTES = 2 * 1024 * 1024
@@ -50,8 +51,11 @@ def main(argv=None):
     parser.add_argument('--showcase-dir', type=Path)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--previous', type=Path)
+    parser.add_argument('--allow-previous-subset', action='store_true')
     parser.add_argument('--store', type=Path)
     parser.add_argument('--source-manifest', type=Path)
+    parser.add_argument('--cutoff', help='Evaluator-supplied RFC 3339 evidence cutoff')
+    parser.add_argument('--output-contract', choices=('local-v1', 'builderr-minimal-v1'), default='local-v1')
     args = parser.parse_args(argv)
     started, clock = utc_now(), time.monotonic()
     output, report_path = args.output.resolve(), args.report.resolve()
@@ -70,6 +74,11 @@ def main(argv=None):
     try:
         if not args.run_id.strip():
             raise ValueError('run-id must be nonempty')
+        if args.cutoff:
+            if timestamp(args.cutoff) > timestamp(started):
+                raise ValueError('Evidence cutoff cannot be in the future')
+            report['cutoff'] = args.cutoff
+        report['output_contract'] = args.output_contract
         records = read_records(args.organisations)
         errors, subjects = validate_inputs(records)
         if errors:
@@ -84,11 +93,13 @@ def main(argv=None):
             raise ValueError('Input batch exceeds declared sample_size')
         if args.live:
             if (config['mode'] != 'local' or not config['network_enabled']
-                    or 'brreg_entity' not in config['enabled_sources']
-                    or set(config['enabled_sources']) - {'brreg_entity', 'brreg_roles', 'brreg_accounts', 'brreg_subunits', 'company_owned', 'nav_jobs'}):
-                raise ValueError('Live runner requires explicitly enabled local source routes; official wire adapter remains unconfirmed')
-            if args.registry or args.registry_receipt or args.source_manifest:
-                raise ValueError('Live and offline acquisition inputs cannot be mixed')
+                    or not {'brreg_entity', 'frozen_registry'} & set(config['enabled_sources'])
+                    or set(config['enabled_sources']) - {'frozen_registry', 'brreg_entity', 'brreg_roles', 'brreg_accounts', 'brreg_subunits', 'company_owned', 'nav_jobs'}):
+                raise ValueError('Live runner requires explicitly enabled source routes and an identity anchor')
+            if args.source_manifest or bool(args.registry) != bool(args.registry_receipt):
+                raise ValueError('Live frozen registry needs both snapshot and receipt; saved source manifests are offline only')
+            if bool(args.registry) != ('frozen_registry' in config['enabled_sources']):
+                raise ValueError('Frozen registry input and enabled source must agree')
             for setting in ('max_total_bytes', 'min_host_interval_seconds', 'max_pages_per_company', 'routing_policy'):
                 if setting not in config:
                     raise ValueError('Live setting missing: ' + setting)
@@ -130,7 +141,18 @@ def main(argv=None):
         previous = {}
         if args.previous:
             prior = read_envelopes(args.previous)
-            errors = validate_envelopes(records, prior, contract)
+            if args.output_contract == 'builderr-minimal-v1':
+                from .wire import convert
+                prior = convert(prior, external=False)
+            previous_records = records
+            if args.allow_previous_subset:
+                if args.output_contract != 'builderr-minimal-v1':
+                    raise ValueError('Subset refresh requires the published-contract adapter')
+                previous_records = [{'organisation_number': e.get('organisation_number') if isinstance(e, dict) else None}
+                                    for e in prior]
+                if any(r['organisation_number'] not in subjects for r in previous_records):
+                    raise ValueError('Previous identities must be a subset of supplied membership')
+            errors = validate_envelopes(previous_records, prior, contract)
             if errors:
                 raise ValueError('Previous envelope invalid: ' + '; '.join(errors))
             previous = {e['organisation_number']: e for e in prior}
@@ -143,9 +165,10 @@ def main(argv=None):
         job = {'subjects': subjects, 'registry': args.registry, 'registry_receipt': args.registry_receipt,
                'store': store_path, 'previous': previous, 'sources': sources, 'source_manifest': args.source_manifest,
                'max_response_bytes': config['max_response_bytes'], 'enabled_sources': config['enabled_sources'],
-               'deadline': deadline, 'started_at': started, 'run_id': args.run_id, 'config': config, 'discovery': discovery}
+               'deadline': deadline, 'started_at': started, 'run_id': args.run_id, 'config': config, 'discovery': discovery,
+               'cutoff': args.cutoff}
         if args.live:
-            report['scope'] = 'live_local_batch'
+            report['scope'] = 'live_frozen_identity_batch' if args.registry else 'live_local_batch'
     except (ValueError, OSError, KeyError, TypeError) as exc:
         report.update(status='rejected_input', completed_at=utc_now(), errors=[str(exc)])
         write_new(report_path, report)
@@ -172,6 +195,8 @@ def main(argv=None):
         write_new(report_path, report)
         return 1
     failed = sum(e['run']['terminal_status'] == 'failed' for e in envelopes)
+    completion_ms = sorted(max(0, int((timestamp(e['run']['completed_at']) - timestamp(started)).total_seconds() * 1000))
+                           for e in envelopes)
     report.update(status='failed' if failed else 'completed', completed_at=utc_now(), companies=companies,
                   supervision=supervision, input_count=len(subjects), output_count=len(envelopes), failed_companies=failed,
                   decisions=[d for c in companies for d in c['decisions']],
@@ -181,10 +206,19 @@ def main(argv=None):
                   acquisition_accounting='All live attempts, redirects, retries and robots charged.' if args.live else
                   'Saved sources are external caches; acquisition requests and times are declared in their receipts.',
                   artifact_complete=True)
+    report['operations'].update(p50_company_completion_ms=completion_ms[math.ceil(len(completion_ms) * .5) - 1],
+                                p95_company_completion_ms=completion_ms[math.ceil(len(completion_ms) * .95) - 1])
     try:
         if args.showcase_dir:
             from .showcase import render
             render(envelopes, args.showcase_dir)
+        if args.output_contract == 'builderr-minimal-v1':
+            from .wire import convert
+            from shirushi_eval.wire import validate_public_contract
+            envelopes = convert(envelopes)
+            errors = validate_public_contract(subjects, envelopes)
+            if errors:
+                raise ValueError('; '.join(errors))
         write_new(output, envelopes, jsonl=True)
         report['output_sha256'] = digest(output.read_bytes())
         # Report is the completion marker; an output without its matching report

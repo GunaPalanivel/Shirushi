@@ -1,7 +1,5 @@
 {
   "received_at": "2026-10-08T15:33:23Z",
-  "sender": "Soham Sinha",
-  "subject": "Re: Signalpost: official run schema and resource limits for Shirushi",
   "official_shard": {
     "companies": 100,
     "wall_time_seconds": 2700,
@@ -14,20 +12,5 @@
   "search_and_model_calls_count": true,
   "credential_policy": "No general Brave test key or personal credentials. Provider and environment variable must be confirmed before revision freeze if Builderr provisions a key. Credential-free fallback required.",
   "revision_deadline": "2026-10-18 end of date UTC",
-  "contract_sources": [
-    {
-      "url": "https://builderr.ai/docs/signalpost-evaluation-harness.md",
-      "sha256": "e9f994e2fa34750411487e9fab82dbffd55dc1bb16efe9021906b92896229d45"
-    },
-    {
-      "url": "https://builderr.ai/starter-briefs/signalpost-sources.md",
-      "sha256": "f080470ab29d5c6da243d812e35d0ae0aa3d35f5871d62dfef90422df1b8f630"
-    },
-    {
-      "url": "https://builderr.ai/signalpost-starter-kit.tar.gz",
-      "sha256": "d48da9910ea7de07d2bf51ab265539a35fe07002a6c1ca5787df81316dfabbf6"
-    }
-  ],
-  "model_key_status": "Separate request sent; no reply visible on 2026-10-08.",
   "byte_units": "Organizer states GB; exact binary/decimal interpretation not supplied. Local caps must be below both interpretations."
 }
