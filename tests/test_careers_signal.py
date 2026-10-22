@@ -60,6 +60,16 @@ class HiringSignalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SourceAudit(self.store.root, [SUBJECT]).claim(SUBJECT, forged, {evidence['id']: evidence})
 
+    def test_same_host_role_link_is_rederived_by_the_independent_auditor(self):
+        html = self.page(H1 + '<a href="/karriere/maler">Maler</a>' + PROOF, TITLE)
+        decisions, found = self.hiring(html, 'www.acme-site.test', '/karriere', 'registered-elsewhere.test')
+        self.assertEqual([d['claim']['value'] for d in found],
+                         ['https://www.acme-site.test/karriere', 'https://www.acme-site.test/karriere/maler'])
+        self.assertEqual(found[1]['evidence']['extraction_method'], 'career_role_link_v1')
+        audit = SourceAudit(self.store.root, [SUBJECT])
+        for row in found:
+            audit.claim(SUBJECT, row['claim'], {row['evidence']['id']: row['evidence']})
+
     def test_career_words_other_than_a_hardcoded_path_still_publish(self):
         html = self.page(H1 + PROOF, TITLE)
         _, found = self.hiring(html, 'www.acme-site.test', '/ledige-stillinger', 'registered-elsewhere.test')

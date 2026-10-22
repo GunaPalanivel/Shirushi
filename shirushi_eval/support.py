@@ -142,7 +142,7 @@ class SourceAudit:
                         from .html_support import audit_catalogue
                         audit_catalogue(subject, claim, item, receipt, raw, anchor.get('navn', ''), ownership_raw, ownership_receipt)
                         continue
-                    if item['extraction_method'] in ('careers_page_url_v1', 'dated_article_datetime_v1'):
+                    if item['extraction_method'] in ('careers_page_url_v1', 'career_role_link_v1', 'dated_article_datetime_v1'):
                         from .recall_support import audit_recall
                         audit_recall(subject, claim, item, receipt, raw, anchor, proof)
                         continue
