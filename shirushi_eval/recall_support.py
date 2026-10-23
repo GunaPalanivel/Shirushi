@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+from datetime import date
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from shirushi.html_sources import Sections
@@ -47,6 +48,61 @@ def heading(raw):
         return None
     return (page.source[chosen['start']:chosen['end']],
             {'html_start': chosen['start'], 'html_end': chosen['end']})
+
+
+def jsonld_ids(node):
+    values = [node.get(k) for k in ('identifier', 'taxID', 'vatID')]
+    found = []
+    for value in values:
+        if isinstance(value, dict):
+            value = value.get('value')
+        if isinstance(value, str) and value.strip():
+            found.append(str(value).replace(' ', '').upper().removeprefix('NO').removesuffix('MVA'))
+    return found
+
+
+def jsonld_nodes(value, path=()):
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            yield from jsonld_nodes(item, path + (index,))
+    elif isinstance(value, dict):
+        yield path, value
+        if '@graph' in value:
+            yield from jsonld_nodes(value['@graph'], path + ('@graph',))
+
+
+def jsonld_articles(raw, url, subject, cutoff):
+    from .live_support import StructuredScripts
+    from .reference import strict_json
+    found = {}
+    for script_index, text in enumerate(StructuredScripts(raw).items):
+        try:
+            parsed = strict_json(text)
+        except ValueError:
+            continue
+        for path, node in jsonld_nodes(parsed):
+            kinds = node.get('@type')
+            kinds = kinds if isinstance(kinds, list) else [kinds]
+            if not any(k in ('NewsArticle', 'Article') for k in kinds):
+                continue
+            about = node.get('about')
+            ids = jsonld_ids(about) if isinstance(about, dict) else []
+            if ids and subject not in ids:
+                continue
+            if subject in ids:
+                continue
+            title, published = node.get('headline'), node.get('datePublished')
+            try:
+                if date.fromisoformat(published[:10]) > cutoff:
+                    continue
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(title, str) or not title.strip():
+                continue
+            item_key = hashlib.sha256((title + '\n' + published + '\n' + str(script_index)).encode()).hexdigest()
+            found[item_key] = ({'headline': title, 'published_at': published, 'source_url': url},
+                               text, {'script_index': script_index, 'node_path': list(path)})
+    return found
 
 
 def articles(raw, url):
@@ -176,6 +232,15 @@ def audit_recall(subject, claim, item, receipt, raw, anchor, proof):
         found = articles(raw, receipt['effective_url']).get(claim.get('item_key'))
         if found is None or claim.get('value') != found[0] or item.get('claim_span') != found[1] or item.get('locator') != found[2]:
             fail('dated news value or span differs from the page')
+        identity(subject, claim, 'dated_news', claim.get('item_key'))
+        return
+    if method == 'dated_newsarticle_jsonld_v1':
+        if claim.get('field') != 'dated_news':
+            fail('claim is not a dated-news claim')
+        cutoff = date.fromisoformat(receipt.get('evaluation_cutoff', receipt['retrieved_at'])[:10])
+        found = jsonld_articles(raw, receipt['effective_url'], subject, cutoff).get(claim.get('item_key'))
+        if found is None or claim.get('value') != found[0] or item.get('claim_span') != found[1] or item.get('locator') != found[2]:
+            fail('dated news JSON-LD value or span differs from the page')
         identity(subject, claim, 'dated_news', claim.get('item_key'))
         return
     fail('extraction method is not a recall-family method')

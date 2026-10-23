@@ -200,7 +200,9 @@ def registry_streets(anchor):
 
 
 def number_pattern(subject):
-    return re.compile(r'(?<![0-9])%s[ .]?%s[ .]?%s(?![0-9])' % (subject[:3], subject[3:6], subject[6:]))
+    a, b, c = subject[:3], subject[3:6], subject[6:]
+    forms = {a + b + c, a + ' ' + b + ' ' + c, a + '.' + b + '.' + c, a + ' ' + b + '.' + c}
+    return re.compile(r'(?<![0-9])(?:' + '|'.join(re.escape(f) for f in forms) + r')(?![0-9])')
 
 
 def hard_identifier(home, subject, legal_name, anchor):
@@ -224,7 +226,8 @@ def hard_identifier(home, subject, legal_name, anchor):
                     (re.fullmatch(r'[0-9]{4}', postcode) and re.search(r'(?<![0-9])' + postcode + r'(?![0-9])', folded))
                     or any(re.search(r'(?<![a-z])' + re.escape(t) + r'(?![a-z])', folded) for t in towns)):
                 return {'kind': 'registry_address', 'part': 'registry_address'}, node
-    candidates = [('title', n) for n in home.nodes if n['tag'] == 'title' and n['text']]
+    title = next((n for n in home.nodes if n['tag'] == 'title' and n['text'] and 'svg' not in n['ancestors']), None)
+    candidates = [('title', title)] if title else []
     candidates += [('h1', n) for n in sorted((n for n in home.nodes if n['tag'] == 'h1' and n['text']),
                                              key=lambda n: n['start'])[:3]]
     candidates += [('footer', n) for n in sorted((n for n in home.nodes if n['tag'] in ('footer', 'address')

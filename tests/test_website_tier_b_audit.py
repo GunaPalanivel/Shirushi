@@ -146,6 +146,24 @@ class PositiveTests(Base):
             self.assertEqual(found[0]['evidence']['extraction_method'], METHOD, why)
             self.accepts(found[0]['claim'], found[0]['evidence'], why)
 
+    def test_svg_title_plus_footer_publishes_the_footer_the_auditor_sees(self):
+        html = ('<!doctype html><html><head><title>Pumper</title></head><body>'
+                + FILLER + '<svg><title>Example Pumps AS</title></svg><footer>Example Pumps AS</footer></body></html>')
+        found, _, _ = self.produce(html)
+        self.assertEqual(len(found), 1)
+        loc = found[0]['evidence']['locator']
+        self.assertEqual(loc['identity_part'], 'footer')
+        self.assertEqual(found[0]['evidence']['claim_span'], '<footer>Example Pumps AS</footer>')
+        self.accepts(found[0]['claim'], found[0]['evidence'])
+
+    def test_mixed_org_number_separators_plus_footer_name_are_independently_supported(self):
+        html = ('<!doctype html><html><head><title>Pumper</title></head><body>'
+                + FILLER + '<span>923.609 016</span><footer>Example Pumps AS</footer></body></html>')
+        found, _, _ = self.produce(html)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]['evidence']['locator']['identity_part'], 'footer')
+        self.accepts(found[0]['claim'], found[0]['evidence'])
+
     def test_org_number_in_title_and_body_publishes_the_body_element(self):
         html = ('<!doctype html><html><head><title>Org.nr 923 609 016</title></head><body>'
                 + FILLER + '<footer>Org.nr 923 609 016</footer></body></html>')

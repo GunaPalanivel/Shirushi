@@ -5,6 +5,7 @@ from .html_sources import Sections
 
 FIELD = 'dated_news'
 METHOD = 'dated_article_datetime_v1'
+JSONLD_METHOD = 'dated_newsarticle_jsonld_v1'
 HEADINGS = {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}
 # article_values quote class and both denial lists. Not its verb list or its date collapse.
 QUOTE = re.compile(r"[?'\"\u2018\u2019\u201c\u201d\u00ab\u00bb:]")

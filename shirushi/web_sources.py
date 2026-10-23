@@ -122,6 +122,45 @@ def page_values(raw, subject, url, cutoff=None):
                            'jobs_dated_activity', url, script_index, path)
 
 
+def jsonld_about_is_other(node, subject):
+    about = node.get('about')
+    if not isinstance(about, dict) or identified(about, subject):
+        return False
+    values = [about.get(k) for k in ('identifier', 'taxID', 'vatID')]
+    for value in values:
+        if isinstance(value, dict):
+            value = value.get('value')
+        if isinstance(value, str) and re.sub(r'\D', '', value):
+            return True
+    return False
+
+
+def jsonld_news_values(raw, url, subject, cutoff):
+    """NewsArticle JSON-LD on a page whose website the caller already accepted."""
+    page = Page(raw)
+    for script_index, text in enumerate(page.scripts):
+        try:
+            parsed = loads(text)
+        except ValueError:
+            continue
+        for path, node in nodes(parsed):
+            kinds = node.get('@type')
+            kinds = kinds if isinstance(kinds, list) else [kinds]
+            if not any(k in ('NewsArticle', 'Article') for k in kinds):
+                continue
+            if identified(node.get('about'), subject) or jsonld_about_is_other(node, subject):
+                continue
+            title, published = node.get('headline'), node.get('datePublished')
+            try:
+                if date.fromisoformat(published[:10]) > cutoff:
+                    continue
+            except (ValueError, TypeError):
+                continue
+            if isinstance(title, str) and title.strip():
+                yield ({'headline': title, 'published_at': published, 'source_url': url},
+                       text, {'script_index': script_index, 'node_path': list(path)})
+
+
 def check_web(store, subject, sid, checker=None):
     raw, receipt = store.open(sid)
     if (receipt['organisation_number'] != subject or receipt['source_class'] != 'company_owned'
@@ -304,7 +343,7 @@ def check_web(store, subject, sid, checker=None):
                           'claim': claim, 'evidence': evidence})
     if any(d['field'] == 'verified_website' and d.get('accepted') for d in decisions):
         from .careers_sources import METHOD as CAREERS_METHOD, ROLE_METHOD, hiring_values, role_links
-        from .news_sources import METHOD as NEWS_METHOD, news_values
+        from .news_sources import JSONLD_METHOD, METHOD as NEWS_METHOD, news_values
         page_scope = 'company_owned_html' if proof else 'registry_linked_html'
         page_url = receipt['effective_url']
         for method, values in ((CAREERS_METHOD, hiring_values(raw, page_url)),
@@ -325,6 +364,20 @@ def check_web(store, subject, sid, checker=None):
                             'extraction_method': method}
                 decisions.append({'field': field, 'family': 'jobs_dated_activity', 'accepted': True,
                                   'claim': claim, 'evidence': evidence})
+        for value, span, loc in jsonld_news_values(raw, page_url, subject, cutoff):
+            item = digest((value['headline'] + '\n' + value['published_at'] + '\n' + str(loc['script_index'])).encode())
+            cid = claim_id(subject, 'dated_news', page_scope, item)
+            eid = sid + ':' + cid
+            claim = {'claim_id': cid, 'field': 'dated_news', 'value': value, 'scope': page_scope,
+                     'family': 'jobs_dated_activity', 'item_key': item, 'period': None,
+                     'availability': 'available', 'evidence_ids': [eid], 'freshness': 'live_source'}
+            evidence = {'id': eid, 'snapshot_id': sid, 'source_url': page_url,
+                        'source_class': 'company_owned', 'source_origin': receipt['source_origin'],
+                        'retrieved_at': receipt['retrieved_at'], 'content_sha256': digest(raw),
+                        'claim_span': span, 'locator': loc, 'support_spans': {},
+                        'extraction_method': JSONLD_METHOD}
+            decisions.append({'field': 'dated_news', 'family': 'jobs_dated_activity', 'accepted': True,
+                              'claim': claim, 'evidence': evidence})
     return decisions
 
 

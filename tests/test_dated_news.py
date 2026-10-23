@@ -120,6 +120,50 @@ class DatedNewsTests(unittest.TestCase):
         activity = next(d for d in decisions if d['field'] == 'public_activity')
         self.assertEqual(activity['claim']['value']['published_at'], '2026-02-04')
 
+    def test_newsarticle_jsonld_on_an_accepted_page_does_not_need_an_about_identifier(self):
+        script = json.dumps({
+            '@type': 'NewsArticle',
+            'headline': 'Aibel awarded contract for Wisting',
+            'datePublished': '2026-10-09T12:30:04.440Z',
+            'publisher': {'@type': 'Organization', 'name': 'Equinor'},
+        })
+        body = '<script type="application/ld+json">' + script + '</script>'
+        decisions, found = self.news(body + PROOF)
+        self.assertIn('verified_website', [d['field'] for d in decisions])
+        self.assertEqual(len(found), 1)
+        value = found[0]['claim']['value']
+        self.assertEqual(value['headline'], 'Aibel awarded contract for Wisting')
+        self.assertEqual(value['published_at'], '2026-10-09T12:30:04.440Z')
+        self.assertEqual(found[0]['evidence']['extraction_method'], 'dated_newsarticle_jsonld_v1')
+        self.assertEqual(found[0]['evidence']['claim_span'], script)
+        claim, evidence = found[0]['claim'], found[0]['evidence']
+        SourceAudit(self.store.root, [SUBJECT]).claim(SUBJECT, claim, {evidence['id']: evidence})
+        forged = dict(claim, value=dict(claim['value'], headline='Someone else'))
+        with self.assertRaises(ValueError):
+            SourceAudit(self.store.root, [SUBJECT]).claim(SUBJECT, forged, {evidence['id']: evidence})
+
+    def test_newsarticle_jsonld_about_another_org_is_refused(self):
+        script = json.dumps({
+            '@type': 'NewsArticle',
+            'headline': 'Aibel awarded contract for Wisting',
+            'datePublished': '2026-10-09T12:30:04.440Z',
+            'about': {'identifier': '999999999'},
+        })
+        body = '<script type="application/ld+json">' + script + '</script>'
+        _, found = self.news(body + PROOF)
+        self.assertEqual(found, [])
+
+    def test_newsarticle_jsonld_without_an_accepted_website_is_refused(self):
+        script = json.dumps({
+            '@type': 'NewsArticle',
+            'headline': 'Aibel awarded contract for Wisting',
+            'datePublished': '2026-10-09T12:30:04.440Z',
+        })
+        body = '<script type="application/ld+json">' + script + '</script>'
+        decisions, found = self.news(body, host='example.no', path='/nyheter', website='example.no')
+        self.assertNotIn('verified_website', [d['field'] for d in decisions])
+        self.assertEqual(found, [])
+
     def test_an_accepted_page_keeps_public_activity_and_adds_the_literal_datetime(self):
         filler = '<p>' + ('Vi leverer pumper og vedlikehold til bedrifter i hele landet. ' * 3) + '</p>'
         footer = ('<footer><p>Copyright 2020-2026 Example Pumps AS</p>'

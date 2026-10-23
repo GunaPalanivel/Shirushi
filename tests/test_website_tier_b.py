@@ -133,6 +133,22 @@ class WebsiteTierBTests(unittest.TestCase):
                                  address=dict(ADDRESS, poststed='TESTBY N'))
         self.assertEqual(len(decisions), 1)
 
+    def test_svg_title_is_not_preferred_over_a_footer_legal_name(self):
+        html = self.doc(title='Pumper', ident='<svg><title>Example Pumps AS</title></svg><footer>Example Pumps AS</footer>')
+        decisions = self.website(html)
+        self.assertEqual(len(decisions), 1)
+        loc = decisions[0]['evidence']['locator']
+        self.assertEqual(loc['identity_part'], 'footer')
+        span = decisions[0]['evidence']['claim_span']
+        self.assertEqual(span, '<footer>Example Pumps AS</footer>')
+        self.assertNotIn('<svg>', span)
+
+    def test_mixed_org_number_separators_fall_through_to_the_footer_name(self):
+        html = self.doc(ident='<span>923.609 016</span><footer>Example Pumps AS</footer>')
+        decisions = self.website(html)
+        self.assertEqual(len(decisions), 1)
+        self.assertEqual(decisions[0]['evidence']['locator']['identity_part'], 'footer')
+
     def test_brand_or_trade_name_and_plain_mentions_are_not_identifiers(self):
         for html in (self.doc(title='Example Pumps - Pumper', ident=''),
                      self.doc(ident='<footer>© 2026 Example Pumps</footer>'),
